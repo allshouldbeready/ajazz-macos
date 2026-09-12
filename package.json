@@ -6,7 +6,7 @@
   "license": "MIT",
   "author": "allshouldbeready; based on work by wsclx",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
   },
   "packageManager": "pnpm@11.19.0",
   "homepage": "https://github.com/allshouldbeready/ajazz-macos",

@@ -45,7 +45,7 @@ Requirements:
 
 - macOS 11 or later on Apple Silicon
 - Rust 1.90 installed through Rustup
-- Node.js 20 or later
+- Node.js 24 (pnpm 11 requires Node.js 22.13 or later)
 - pnpm 11.19.0
 
 Ensure the Rustup shims precede Homebrew's standalone Rust binaries:
