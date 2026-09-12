@@ -7,8 +7,8 @@ The proprietary installer and extracted files are intentionally not included.
 |---|---|---|---|
 | Wired discovery and device information | Transport detection implemented; legacy info read pending | Rust tests and CLI probe | 9 collections enumerated; legacy control selected |
 | Bluetooth-only guidance | Implemented | Frontend build | Pending Bluetooth-to-wired transition |
-| Clock, sleep, and game settings | Clock implemented on both transports; remaining legacy mappings pending | Clock golden packets and encoder/parser tests | Legacy clock write completed; visible clock check pending |
-| 20 global RGB effects | Legacy and online writes implemented | Golden payload tests | Static-green legacy transaction accepted; visual confirmation pending |
+| Clock, sleep, and game settings | Clock implemented on both transports; remaining legacy mappings pending | Clock golden packets and encoder/parser tests | Legacy clock visibly confirmed correct on ANSI hardware |
+| 20 global RGB effects | Legacy and online writes implemented | Golden payload tests | Static-green legacy write visibly confirmed on ANSI hardware |
 | Per-key RGB | Implemented | Encode/decode tests | Pending ANSI wired device |
 | Base and Fn keymaps | Implemented | Round-trip codec tests | Pending ANSI wired device |
 | Macros | Implemented | Bounds and codec tests | Pending ANSI wired device |

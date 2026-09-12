@@ -57,8 +57,10 @@ DATA or FINISH. The macOS implementation always attempts FINISH after an error
 so a failed operation does not strand the device transaction state.
 
 On 2026-09-12, the exact 65-byte framing and full lighting transaction were
-accepted by the connected ANSI keyboard. The online-driver `0xAA` frames timed
-out on both `0xFF68` and `0xFF13` on this firmware.
+accepted by the connected ANSI keyboard, and the requested static-green result
+was visibly confirmed. The legacy clock transaction was also visibly confirmed
+with the correct local time. The online-driver `0xAA` frames timed out on both
+`0xFF68` and `0xFF13` on this firmware.
 
 ## Online-driver transport (confirmed against AJAZZ firmware 1.07)
 
