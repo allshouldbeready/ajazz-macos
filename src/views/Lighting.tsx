@@ -213,7 +213,7 @@ export function Lighting() {
         <div
           className={["grid gap-6", audioReactive ? "pointer-events-none opacity-50" : ""].join(" ")}
         >
-        {SHOW_EXPERIMENTAL_FEATURES && <Card
+        <Card
           title="Mode"
           action={
             lastApplied && !audioReactive ? (
@@ -223,7 +223,7 @@ export function Lighting() {
             ) : null
           }
         >
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
             {modes.map((m) => {
               const isActive = m.name === cfg.mode;
               return (
@@ -232,14 +232,21 @@ export function Lighting() {
                   variant={isActive ? "ghost-active" : "ghost"}
                   size="sm"
                   onClick={() => update("mode", m.name)}
-                  title={m.supports_direction ? `directions: ${m.directions.join(", ")}` : "direction ignored"}
+                  className="justify-start"
+                  title={m.description}
                 >
-                  {m.name}
+                  {m.label}
                 </Button>
               );
             })}
           </div>
-        </Card>}
+          {currentMode && (
+            <p className="mt-4 border-t border-line/60 pt-3 text-sm text-fg-2">
+              <span className="font-medium text-fg-0">{currentMode.label}.</span>{" "}
+              {currentMode.description}
+            </p>
+          )}
+        </Card>
 
         {isCustomMode ? (
           <CustomLightingPaint inheritedConfig={cfg} />

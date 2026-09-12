@@ -62,6 +62,26 @@ was visibly confirmed. The legacy clock transaction was also visibly confirmed
 with the correct local time. The online-driver `0xAA` frames timed out on both
 `0xFF68` and `0xFF13` on this firmware.
 
+### Supplied-driver System settings (`0x17`)
+
+The supplied application's System save path uses `START`, a `04 17` preamble,
+one 64-byte settings payload, then `SAVE`. The data bytes are:
+
+| Offset | Meaning |
+|---:|---|
+| 0 | `00` |
+| 1 | `01` |
+| 2 | disable Windows key (0/1) |
+| 3 | disable Alt+F4 (0/1) |
+| 4 | disable Alt+Tab (0/1) |
+| 5 | Fn switch (0/1) |
+| 6 | sleep preset (0 never, 1 one minute, 2 five minutes, 3 thirty minutes) |
+| 8 | key response level (1–5) |
+| 62–63 | check bytes `AA 55` |
+
+This transport has no corresponding settings read in the supplied driver, so
+the app presents vendor defaults and labels the operation as write-only.
+
 ## Online-driver transport (confirmed against AJAZZ firmware 1.07)
 
 - **HID output reports** on a vendor-specific control endpoint (normally usage page `0xFF68`); the large TFT stream uses a separate `0xFF67` endpoint. Both use report ID `0`.

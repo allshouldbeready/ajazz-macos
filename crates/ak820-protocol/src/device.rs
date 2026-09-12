@@ -9,11 +9,11 @@ use crate::commands::macros::{
     self as macro_cmds, IndexEntry, Macro, MACRO_DATA_ADDR, MACRO_INDEX_BYTES,
 };
 use crate::commands::per_key_rgb::{CustomLedMap, CUSTOM_LED_BYTES};
-use crate::commands::system::{DeviceInfoReport, GameMode};
+use crate::commands::system::{DeviceInfoReport, GameMode, LegacySystemSettings};
 use crate::commands::tft::{build_tft_header, TftAnimation};
 use crate::legacy_protocol::{
     clock_data, clock_preamble, feature_report, finish_payload, lighting_data, lighting_preamble,
-    save_payload, start_payload, FEATURE_REPORT_LEN,
+    save_payload, start_payload, system_data, system_preamble, FEATURE_REPORT_LEN,
 };
 use crate::protocol::{
     build_frame, cmd, HEADER_LEN, MAGIC_INCOMING, PACKET_LEN, PAYLOAD_PER_PACKET, REPORT_ID,
@@ -213,6 +213,17 @@ pub enum TransportKind {
     LegacyFeature,
 }
 
+impl TransportKind {
+    fn ensure_online_output(self) -> Result<()> {
+        match self {
+            Self::OnlineOutput => Ok(()),
+            Self::LegacyFeature => Err(Error::NotImplemented(
+                "keymap, macro, and online-driver reports are unavailable on this keyboard firmware",
+            )),
+        }
+    }
+}
+
 impl Connection {
     /// Open the AK820 control endpoint. Selection precedence:
     ///   1. `AK820_IFACE=N` → first device with `interface_number == N`
@@ -326,6 +337,10 @@ impl Connection {
 
     /// Send one output report on this interface.
     fn write_output_report(&self, frame: &[u8; PACKET_LEN]) -> Result<()> {
+        // Keep the guard at the lowest output-report layer. Keymap and macro
+        // reads use chunked helpers and previously bypassed the higher-level
+        // `get` guard, sending an incompatible frame that toggled Caps Lock.
+        self.transport.ensure_online_output()?;
         let mut buf = [0u8; PACKET_LEN + 1];
         buf[0] = REPORT_ID;
         buf[1..].copy_from_slice(frame);
@@ -824,6 +839,33 @@ impl Connection {
         self.set(cmd::SET_GAME_MODE, &payload)
     }
 
+    pub fn set_legacy_system_settings(&self, settings: &LegacySystemSettings) -> Result<()> {
+        if self.transport != TransportKind::LegacyFeature {
+            return Err(Error::NotImplemented(
+                "legacy system settings require supplied-driver firmware",
+            ));
+        }
+        settings.validate()?;
+        let data = system_data(
+            settings.disable_windows_key,
+            settings.disable_alt_f4,
+            settings.disable_alt_tab,
+            settings.fn_switch,
+            settings.sleep_time,
+            settings.key_response_level,
+        );
+        // Exact supplied-driver sequence: START, 0x17 preamble, data, SAVE.
+        // Unlike lighting, this command does not send a FINISH frame.
+        legacy_feature_exchange(&self.device, &start_payload())?;
+        legacy_pause();
+        legacy_feature_exchange(&self.device, &system_preamble())?;
+        legacy_pause();
+        legacy_feature_send(&self.device, &data)?;
+        legacy_pause();
+        legacy_feature_exchange(&self.device, &save_payload())?;
+        Ok(())
+    }
+
     fn set_legacy_transaction(
         &self,
         preamble: &[u8; crate::legacy_protocol::PAYLOAD_LEN],
@@ -940,5 +982,14 @@ mod device_tests {
             remaining_timeout_ms(now + std::time::Duration::from_millis(25), now),
             Some(25)
         );
+    }
+
+    #[test]
+    fn legacy_transport_rejects_online_frames_before_hid_io() {
+        assert!(TransportKind::OnlineOutput.ensure_online_output().is_ok());
+        assert!(matches!(
+            TransportKind::LegacyFeature.ensure_online_output(),
+            Err(Error::NotImplemented(_))
+        ));
     }
 }

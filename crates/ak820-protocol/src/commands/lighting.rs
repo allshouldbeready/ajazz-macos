@@ -99,6 +99,60 @@ impl Mode {
         }
     }
 
+    /// Human-readable names used by the supplied AJAZZ driver. The two
+    /// single-key effects are annotated so their reactive behaviour is clear.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Off => "LED Off",
+            Self::Static => "Static",
+            Self::SingleOn => "Single On (reactive)",
+            Self::SingleOff => "Single Off (inverse reactive)",
+            Self::Glittering => "Glittering",
+            Self::Falling => "Falling",
+            Self::Colourful => "Colourful",
+            Self::Breath => "Breathing",
+            Self::Spectrum => "Spectrum",
+            Self::Outward => "Outward",
+            Self::Scrolling => "Scrolling",
+            Self::Rolling => "Rolling",
+            Self::Rotating => "Rotating",
+            Self::Explode => "Explode",
+            Self::Launch => "Launch",
+            Self::Ripples => "Ripples",
+            Self::Flowing => "Flowing",
+            Self::Pulsating => "Pulsating",
+            Self::Tilt => "Tilt",
+            Self::Shuttle => "Shuttle",
+            Self::Custom => "Per-key custom",
+        }
+    }
+
+    pub fn description(self) -> &'static str {
+        match self {
+            Self::Off => "Turn the keyboard backlight off.",
+            Self::Static => "Keep every key steadily lit.",
+            Self::SingleOn => "Light each key when it is pressed.",
+            Self::SingleOff => "Dim each pressed key against the lit keyboard.",
+            Self::Glittering => "Scatter sparkling points across the keyboard.",
+            Self::Falling => "Move falling trails through the key grid.",
+            Self::Colourful => "Cycle a multicolour pattern across the keyboard.",
+            Self::Breath => "Fade the backlight smoothly in and out.",
+            Self::Spectrum => "Sweep continuously through the RGB spectrum.",
+            Self::Outward => "Expand light outward from the centre.",
+            Self::Scrolling => "Scroll the effect vertically.",
+            Self::Rolling => "Roll a band of light horizontally.",
+            Self::Rotating => "Rotate the lighting pattern around the keyboard.",
+            Self::Explode => "Burst light outward from each keypress.",
+            Self::Launch => "Launch a moving trail from each keypress.",
+            Self::Ripples => "Send ripples across nearby keys after a keypress.",
+            Self::Flowing => "Flow a continuous band from side to side.",
+            Self::Pulsating => "Pulse the lighting rhythmically.",
+            Self::Tilt => "Shift the lighting field from side to side.",
+            Self::Shuttle => "Move a light band back and forth.",
+            Self::Custom => "Use the per-key colour canvas.",
+        }
+    }
+
     pub fn from_name(name: &str) -> Option<Self> {
         Self::ALL
             .iter()
@@ -258,5 +312,14 @@ mod tests {
         let p = led_effect_payload(&cfg);
         assert_eq!(p[9], MAX_BRIGHTNESS);
         assert_eq!(p[10], MAX_SPEED);
+    }
+
+    #[test]
+    fn exposes_all_twenty_vendor_modes_plus_custom() {
+        assert_eq!(Mode::ALL.len(), 21);
+        assert_eq!(Mode::Breath.label(), "Breathing");
+        assert!(Mode::SingleOn.description().contains("pressed"));
+        assert_eq!(Mode::Shuttle as u8, 0x13);
+        assert_eq!(Mode::Custom as u8, 0x80);
     }
 }

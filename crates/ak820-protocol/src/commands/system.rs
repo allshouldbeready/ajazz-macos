@@ -94,6 +94,41 @@ pub struct GameMode {
     pub single_key_wakeup: u8,
 }
 
+/// Settings block used by the supplied AK820 Pro driver firmware. This is a
+/// write-only protocol: the vendor application builds the complete block from
+/// its saved profile rather than reading it back from the keyboard.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LegacySystemSettings {
+    pub disable_windows_key: bool,
+    pub disable_alt_f4: bool,
+    pub disable_alt_tab: bool,
+    pub fn_switch: bool,
+    /// 0 = never, 1 = 1 minute, 2 = 5 minutes, 3 = 30 minutes.
+    pub sleep_time: u8,
+    /// Vendor response-time level, 1 through 5.
+    pub key_response_level: u8,
+}
+
+impl LegacySystemSettings {
+    pub fn validate(&self) -> crate::Result<()> {
+        if self.sleep_time > 3 {
+            return Err(crate::Error::OutOfRange {
+                field: "legacy sleep time",
+                value: self.sleep_time as i64,
+                max: 3,
+            });
+        }
+        if !(1..=5).contains(&self.key_response_level) {
+            return Err(crate::Error::OutOfRange {
+                field: "legacy key response level",
+                value: self.key_response_level as i64,
+                max: 5,
+            });
+        }
+        Ok(())
+    }
+}
+
 impl GameMode {
     pub fn parse(b: &[u8]) -> Self {
         let g = |i: usize| b.get(i).copied().unwrap_or(0);
@@ -234,5 +269,23 @@ mod tests {
         assert!((parsed.top_dead_zone - 0.15).abs() < 0.001);
         assert!((parsed.bottom_dead_zone - 0.25).abs() < 0.001);
         assert_eq!(parsed.stability_mode, 1);
+    }
+
+    #[test]
+    fn legacy_system_settings_reject_invalid_presets() {
+        let mut settings = LegacySystemSettings {
+            disable_windows_key: false,
+            disable_alt_f4: false,
+            disable_alt_tab: false,
+            fn_switch: false,
+            sleep_time: 3,
+            key_response_level: 5,
+        };
+        assert!(settings.validate().is_ok());
+        settings.sleep_time = 4;
+        assert!(settings.validate().is_err());
+        settings.sleep_time = 0;
+        settings.key_response_level = 0;
+        assert!(settings.validate().is_err());
     }
 }

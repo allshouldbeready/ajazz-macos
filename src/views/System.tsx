@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Badge, BatteryBar, Button, Card, ErrorBanner, KVList, Mono, formatInt, hex4 } from "../components/ui";
+import { Badge, BatteryBar, Button, Card, ErrorBanner, KVList, Mono, Toggle, formatInt, hex4 } from "../components/ui";
 import { PageHeader } from "../components/Layout";
 import { invokeDeviceWrite } from "../device-write";
 import { formatError } from "../errors";
@@ -48,6 +48,22 @@ interface SleepPreset {
   label: string;
 }
 
+interface LegacySystemSettings {
+  disable_windows_key: boolean;
+  disable_alt_f4: boolean;
+  disable_alt_tab: boolean;
+  fn_switch: boolean;
+  sleep_time: number;
+  key_response_level: number;
+}
+
+const LEGACY_SLEEP_PRESETS: SleepPreset[] = [
+  { value: 0, label: "never" },
+  { value: 1, label: "1 minute" },
+  { value: 2, label: "5 minutes" },
+  { value: 3, label: "30 minutes" },
+];
+
 interface TftDateTime {
   year: number;
   month: number;
@@ -60,7 +76,18 @@ interface TftDateTime {
 export function System() {
   const [info, setInfo] = useState<DeviceInfoReport | null>(null);
   const [gm, setGm] = useState<GameMode | null>(null);
+  const [draft, setDraft] = useState<GameMode | null>(null);
   const [presets, setPresets] = useState<SleepPreset[]>([]);
+  const [transport, setTransport] = useState<"online-output" | "legacy-feature" | null>(null);
+  const [legacySettings, setLegacySettings] = useState<LegacySystemSettings>({
+    disable_windows_key: false,
+    disable_alt_f4: false,
+    disable_alt_tab: false,
+    fn_switch: false,
+    sleep_time: 1,
+    key_response_level: 1,
+  });
+  const [legacySaved, setLegacySaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [clockSync, setClockSync] = useState<TftDateTime | null>(null);
@@ -69,15 +96,24 @@ export function System() {
     setBusy(true);
     setErr(null);
     try {
-      // Sequential, not Promise.all — get_device_info and get_game_mode both
-      // hold the persistent HID mutex (sync `std::sync::Mutex`); running them
-      // in parallel blocks a tokio worker and can freeze the Tauri runtime.
       const p = await invoke<SleepPreset[]>("list_sleep_presets");
       setPresets(p);
+      const t = await invoke<"online-output" | "legacy-feature">("get_transport_kind");
+      setTransport(t);
+      if (t === "legacy-feature") {
+        // This firmware uses the supplied Windows driver's feature reports.
+        // Do not attempt incompatible online reads merely to populate cards.
+        setInfo(null);
+        setGm(null);
+        setDraft(null);
+        return;
+      }
+      // Sequential because both reads hold the persistent HID mutex.
       const i = await invoke<DeviceInfoReport>("get_device_info");
       setInfo(i);
       const g = await invoke<GameMode>("get_game_mode");
       setGm(g);
+      setDraft(g);
     } catch (e) {
       setErr(formatError(e));
     } finally {
@@ -89,21 +125,21 @@ export function System() {
     refresh();
   }, []);
 
-  async function setSleep(value: number) {
-    if (!gm) return;
+  async function saveSystemSettings() {
+    if (!draft) return;
     setBusy(true);
     setErr(null);
     try {
-      const next = { ...gm, sleep_time: value };
       await invokeDeviceWrite(
         "set_game_mode",
-        { mode: next },
-        `Change the keyboard sleep timer to ${presets.find((preset) => preset.value === value)?.label ?? value}.`,
+        { mode: draft },
+        "Save the sleep, response, game, and onboard system settings shown on this page.",
       );
       const readback = await invoke<GameMode>("get_game_mode");
       setGm(readback);
-      if (readback.sleep_time !== value) {
-        setErr(`Set sleep_time=${value} but keyboard reports ${readback.sleep_time}`);
+      setDraft(readback);
+      if (JSON.stringify(readback) !== JSON.stringify(draft)) {
+        setErr("The keyboard read-back differs from the requested settings. Displaying the values it accepted.");
       }
     } catch (e) {
       setErr(formatError(e));
@@ -111,6 +147,34 @@ export function System() {
       setBusy(false);
     }
   }
+
+  async function saveLegacySystemSettings() {
+    setBusy(true);
+    setErr(null);
+    try {
+      await invokeDeviceWrite(
+        "set_legacy_system_settings",
+        { settings: legacySettings },
+        "Save Windows-key, shortcut-lock, Fn, sleep, and key-response settings. This firmware cannot read the previous values back.",
+      );
+      setLegacySaved(true);
+    } catch (e) {
+      setErr(formatError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function updateLegacy<K extends keyof LegacySystemSettings>(key: K, value: LegacySystemSettings[K]) {
+    setLegacySaved(false);
+    setLegacySettings((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateDraft<K extends keyof GameMode>(key: K, value: GameMode[K]) {
+    setDraft((current) => (current ? { ...current, [key]: value } : current));
+  }
+
+  const hasChanges = gm !== null && draft !== null && JSON.stringify(gm) !== JSON.stringify(draft);
 
   async function syncClock() {
     setBusy(true);
@@ -133,7 +197,7 @@ export function System() {
     <>
       <PageHeader
         title="System"
-        description="Live firmware, battery, and onboard settings."
+        description="Firmware information and safe onboard controls."
         action={
           <Button variant="primary" onClick={refresh} disabled={busy}>
             {busy ? "Reading…" : "Refresh"}
@@ -144,10 +208,21 @@ export function System() {
       <ErrorBanner>{err}</ErrorBanner>
 
       <div className="grid gap-6">
+        {transport === "legacy-feature" && (
+          <Card title="Connected with supplied-driver firmware" kicker="Compatibility mode">
+            <p className="text-sm leading-relaxed text-fg-2">
+              Lighting, TFT clock sync, and the official System settings block are available.
+              This firmware cannot report its current System values, so the controls below begin
+              with the vendor defaults and only change the keyboard when you press Save.
+            </p>
+          </Card>
+        )}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card title="Device">
             {info === null ? (
-              <p className="text-sm text-fg-2">Reading…</p>
+              <p className="text-sm text-fg-2">
+                {transport === "legacy-feature" ? "Detailed device reads are unavailable on this firmware." : "Reading…"}
+              </p>
             ) : (
               <KVList
                 rows={[
@@ -184,32 +259,83 @@ export function System() {
             )}
           </Card>
 
-          <Card title="Sleep timer">
-            {gm === null ? (
-              <p className="text-sm text-fg-2">Reading…</p>
+          <Card
+            title="Onboard system settings"
+            action={draft && (
+              <Button variant="primary" size="sm" onClick={saveSystemSettings} disabled={busy || !hasChanges}>
+                {busy ? "Saving…" : "Save settings"}
+              </Button>
+            )}
+          >
+            {transport === "legacy-feature" ? (
+              <>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="grid gap-1.5 text-sm text-fg-2">
+                    Sleep timer
+                    <select value={legacySettings.sleep_time} onChange={(e) => updateLegacy("sleep_time", Number(e.target.value))}>
+                      {LEGACY_SLEEP_PRESETS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="grid gap-1.5 text-sm text-fg-2">
+                    Key response level
+                    <select value={legacySettings.key_response_level} onChange={(e) => updateLegacy("key_response_level", Number(e.target.value))}>
+                      {[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>Level {value}</option>)}
+                    </select>
+                  </label>
+                </div>
+                <div className="mt-5 grid gap-3 border-t border-line/60 pt-4 sm:grid-cols-2">
+                  <Toggle checked={legacySettings.disable_windows_key} onChange={(v) => updateLegacy("disable_windows_key", v)}>Disable Windows key</Toggle>
+                  <Toggle checked={legacySettings.disable_alt_f4} onChange={(v) => updateLegacy("disable_alt_f4", v)}>Disable Alt+F4</Toggle>
+                  <Toggle checked={legacySettings.disable_alt_tab} onChange={(v) => updateLegacy("disable_alt_tab", v)}>Disable Alt+Tab</Toggle>
+                  <Toggle checked={legacySettings.fn_switch} onChange={(v) => updateLegacy("fn_switch", v)}>Fn switch</Toggle>
+                </div>
+                <div className="mt-5 flex items-center gap-3 border-t border-line/60 pt-4">
+                  <Button variant="primary" size="sm" onClick={saveLegacySystemSettings} disabled={busy}>
+                    {busy ? "Saving…" : "Save settings"}
+                  </Button>
+                  {legacySaved && <span className="text-xs text-good">Saved to keyboard</span>}
+                </div>
+                <p className="mt-3 text-xs text-fg-3">Write-only on this firmware; visual/behavioural confirmation is required.</p>
+              </>
+            ) : draft === null ? (
+              <p className="text-sm text-fg-2">
+                Reading…
+              </p>
             ) : (
               <>
-                <p className="mb-4 text-sm text-fg-2">
-                  Current:{" "}
-                  <span className="font-mono text-fg-0">
-                    {presets.find((p) => p.value === gm.sleep_time)?.label ?? `value ${gm.sleep_time}`}
-                  </span>
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {presets.map((p) => (
-                    <Button
-                      key={p.value}
-                      variant={p.value === gm.sleep_time ? "ghost-active" : "ghost"}
-                      size="sm"
-                      onClick={() => setSleep(p.value)}
-                      disabled={busy}
-                    >
-                      {p.label}
-                    </Button>
-                  ))}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="grid gap-1.5 text-sm text-fg-2">
+                    Sleep timer
+                    <select value={draft.sleep_time} onChange={(e) => updateDraft("sleep_time", Number(e.target.value))}>
+                      {presets.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="grid gap-1.5 text-sm text-fg-2">
+                    Key response level
+                    <select value={draft.key_delay} onChange={(e) => updateDraft("key_delay", Number(e.target.value))}>
+                      {[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>Level {value}</option>)}
+                    </select>
+                  </label>
+                  <label className="grid gap-1.5 text-sm text-fg-2">
+                    Report-rate value
+                    <input type="number" min={0} max={255} value={draft.report_rate}
+                      onChange={(e) => updateDraft("report_rate", Math.max(0, Math.min(255, Number(e.target.value) || 0)))} />
+                  </label>
+                  <label className="grid gap-1.5 text-sm text-fg-2">
+                    TFT display-time value
+                    <input type="number" min={0} max={255} value={draft.tft_display_time}
+                      onChange={(e) => updateDraft("tft_display_time", Math.max(0, Math.min(255, Number(e.target.value) || 0)))} />
+                  </label>
+                </div>
+                <div className="mt-5 grid gap-3 border-t border-line/60 pt-4 sm:grid-cols-2">
+                  <Toggle checked={draft.game_mode !== 0} onChange={(v) => updateDraft("game_mode", v ? 1 : 0)}>Game mode</Toggle>
+                  <Toggle checked={draft.fn_switch !== 0} onChange={(v) => updateDraft("fn_switch", v ? 1 : 0)}>Fn switch</Toggle>
+                  <Toggle checked={draft.stability_mode !== 0} onChange={(v) => updateDraft("stability_mode", v ? 1 : 0)}>Stability mode</Toggle>
+                  <Toggle checked={draft.auto_calibration !== 0} onChange={(v) => updateDraft("auto_calibration", v ? 1 : 0)}>Auto calibration</Toggle>
+                  <Toggle checked={draft.single_key_wakeup !== 0} onChange={(v) => updateDraft("single_key_wakeup", v ? 1 : 0)}>Single-key wakeup</Toggle>
                 </div>
                 <p className="mt-4 border-t border-line/60 pt-3 text-xs text-fg-3">
-                  After a write the keyboard's value is read back to confirm — UI updates only after the round-trip succeeds.
+                  One confirmed write saves the complete settings block, then reads it back for verification.
                 </p>
               </>
             )}
@@ -217,23 +343,6 @@ export function System() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card title="Other settings">
-            {gm === null ? (
-              <p className="text-sm text-fg-2">Reading…</p>
-            ) : (
-              <KVList
-                rows={[
-                  { label: "Key delay", value: <Mono>{gm.key_delay}</Mono> },
-                  { label: "Report rate", value: <Mono>{gm.report_rate}</Mono> },
-                  { label: "TFT display time", value: <Mono>{gm.tft_display_time}</Mono> },
-                  { label: "Stability mode", value: <Mono>{gm.stability_mode}</Mono> },
-                  { label: "Auto calibration", value: <Mono>{gm.auto_calibration}</Mono> },
-                  { label: "Single-key wakeup", value: <Mono>{gm.single_key_wakeup}</Mono> },
-                ]}
-              />
-            )}
-          </Card>
-
           <Card title="TFT clock">
             <p className="mb-4 text-sm text-fg-2">
               Send this Mac's current local date and time to the keyboard display.
@@ -248,6 +357,12 @@ export function System() {
                 {String(clockSync.minute).padStart(2, "0")}:{String(clockSync.second).padStart(2, "0")}
               </p>
             )}
+          </Card>
+          <Card title="Safety boundary">
+            <p className="text-sm leading-relaxed text-fg-2">
+              AJAZZ macOS never invokes firmware update or bootloader operations. Device writes
+              are serialized and require session approval; settings are read back when supported.
+            </p>
           </Card>
         </div>
       </div>

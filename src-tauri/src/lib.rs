@@ -4,7 +4,9 @@ use ak820_protocol::{
     commands::lighting::{Direction, LightingConfig, Mode},
     commands::macros::{Macro, MACRO_BYTE_LIMIT, MACRO_SLOT_COUNT, MAX_ACTIONS_PER_MACRO},
     commands::per_key_rgb::CustomLedMap,
-    commands::system::{DeviceInfoReport, GameMode, SleepPreset, SLEEP_PRESETS},
+    commands::system::{
+        DeviceInfoReport, GameMode, LegacySystemSettings, SleepPreset, SLEEP_PRESETS,
+    },
     commands::tft_image::{self, FitMode},
     commands::tft_presets::{self, TftPresetInfo},
     device::ProbeReport,
@@ -312,6 +314,8 @@ async fn close_device(state: State<'_, Arc<ConnState>>) -> Result<(), AppError> 
 #[derive(Serialize)]
 struct LightingModeInfo {
     name: &'static str,
+    label: &'static str,
+    description: &'static str,
     supports_direction: bool,
     directions: Vec<&'static str>,
 }
@@ -324,11 +328,25 @@ fn list_lighting_modes() -> Vec<LightingModeInfo> {
             let dirs = m.supported_directions();
             LightingModeInfo {
                 name: m.name(),
+                label: m.label(),
+                description: m.description(),
                 supports_direction: !dirs.is_empty(),
                 directions: dirs.iter().map(direction_name).collect(),
             }
         })
         .collect()
+}
+
+#[tauri::command]
+async fn get_transport_kind(
+    state: State<'_, Arc<ConnState>>,
+) -> Result<ak820_protocol::TransportKind, AppError> {
+    state
+        .with(|slot| {
+            let conn = ensure_open(slot)?;
+            Ok(conn.transport())
+        })
+        .await
 }
 
 #[tauri::command]
@@ -368,6 +386,22 @@ async fn set_game_mode(
         .await?;
     restore_tft_quietly(memory.inner().clone()).await;
     Ok(())
+}
+
+#[tauri::command]
+async fn set_legacy_system_settings(
+    io: State<'_, Arc<DeviceIoGate>>,
+    state: State<'_, Arc<ConnState>>,
+    settings: LegacySystemSettings,
+) -> Result<(), AppError> {
+    let _gate = io.0.lock().await;
+    state
+        .with(|slot| {
+            let conn = ensure_open(slot)?;
+            conn.set_legacy_system_settings(&settings)?;
+            Ok(())
+        })
+        .await
 }
 
 #[tauri::command]
@@ -1206,10 +1240,12 @@ pub fn run() {
             probe_device,
             close_device,
             list_lighting_modes,
+            get_transport_kind,
             apply_lighting,
             get_device_info,
             get_game_mode,
             set_game_mode,
+            set_legacy_system_settings,
             list_sleep_presets,
             sync_clock,
             force_reconnect,

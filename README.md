@@ -38,6 +38,8 @@ wireless use.
 
 Experimental upstream features are intentionally hidden from the first parity
 milestone. They may return later after the official feature surface is verified.
+The official controls and installer-derived effect catalogue are documented in
+[RGB modes](docs/RGB_MODES.md).
 
 ## Build
 
@@ -65,7 +67,7 @@ pnpm tauri:build
 ```
 
 The unsigned DMG is written beneath
-`src-tauri/target/release/bundle/dmg/`. macOS may require a control-click and
+`target/release/bundle/dmg/`. macOS may require a control-click and
 Open for an unsigned local build.
 
 ## CLI

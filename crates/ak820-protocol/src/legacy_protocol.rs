@@ -13,6 +13,7 @@ const SAVE: u8 = 0x02;
 const FINISH: u8 = 0xF0;
 const LIGHTING: u8 = 0x13;
 const CLOCK: u8 = 0x28;
+const SYSTEM: u8 = 0x17;
 
 fn control_payload(command: u8, byte2: u8, byte8: u8) -> [u8; PAYLOAD_LEN] {
     let mut payload = [0u8; PAYLOAD_LEN];
@@ -41,6 +42,33 @@ pub fn lighting_preamble() -> [u8; PAYLOAD_LEN] {
 
 pub fn clock_preamble() -> [u8; PAYLOAD_LEN] {
     control_payload(CLOCK, 0, 1)
+}
+
+pub fn system_preamble() -> [u8; PAYLOAD_LEN] {
+    control_payload(SYSTEM, 1, 1)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn system_data(
+    disable_windows_key: bool,
+    disable_alt_f4: bool,
+    disable_alt_tab: bool,
+    fn_switch: bool,
+    sleep_time: u8,
+    key_response_level: u8,
+) -> [u8; PAYLOAD_LEN] {
+    let mut payload = [0u8; PAYLOAD_LEN];
+    payload[0] = 0;
+    payload[1] = 1;
+    payload[2] = u8::from(disable_windows_key);
+    payload[3] = u8::from(disable_alt_f4);
+    payload[4] = u8::from(disable_alt_tab);
+    payload[5] = u8::from(fn_switch);
+    payload[6] = sleep_time;
+    payload[8] = key_response_level;
+    payload[PAYLOAD_LEN - 2] = 0xAA;
+    payload[PAYLOAD_LEN - 1] = 0x55;
+    payload
 }
 
 pub fn clock_data(
@@ -146,6 +174,17 @@ mod tests {
 
         let data = feature_report(&clock_data(2026, 9, 12, 19, 7, 45, 6));
         assert_eq!(&data[..12], &[0, 0, 1, 0x5A, 26, 9, 12, 19, 7, 45, 0, 6]);
+        assert_eq!(&data[63..], &[0xAA, 0x55]);
+    }
+
+    #[test]
+    fn system_packets_match_supplied_installer() {
+        let preamble = feature_report(&system_preamble());
+        assert_eq!(&preamble[..4], &[0, 0x04, 0x17, 1]);
+        assert_eq!(preamble[9], 1);
+
+        let data = feature_report(&system_data(true, false, true, true, 2, 4));
+        assert_eq!(&data[..10], &[0, 0, 1, 1, 0, 1, 1, 2, 0, 4]);
         assert_eq!(&data[63..], &[0xAA, 0x55]);
     }
 }

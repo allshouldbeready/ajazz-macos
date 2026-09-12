@@ -19,6 +19,8 @@ export interface ProbeReport {
 
 export interface LightingModeInfo {
   name: string;
+  label: string;
+  description: string;
   supports_direction: boolean;
   directions: string[];
 }
