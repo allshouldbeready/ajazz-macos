@@ -37,7 +37,7 @@ jobs:
       # at compile time and verifies `frontendDist` actually exists. So we have
       # to build the frontend before clippy / test even though this is "the
       # Rust job" — otherwise compilation panics with "this path doesn't exist".
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 11.19.0
 
@@ -66,7 +66,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 11.19.0
 
@@ -103,7 +103,7 @@ jobs:
           cache-bin: false
           prefix-key: v1-rust
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 11.19.0
 
