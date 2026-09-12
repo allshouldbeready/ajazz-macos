@@ -5,7 +5,6 @@ import { formatError } from "../errors";
 import {
   downloadGif,
   searchGifs,
-  type GifProvider,
   type GifSearchResult,
 } from "../gif-providers";
 
@@ -28,10 +27,8 @@ interface Props {
   ) => Promise<void>;
 }
 
-const KEY_STORAGE: Record<GifProvider, string> = {
-  giphy: "ajazz-macos:giphy-api-key",
-  tenor: "ajazz-macos:tenor-api-key",
-};
+const KEY_STORAGE = "ajazz-macos:giphy-api-key";
+const SETUP_URL = "https://developers.giphy.com/dashboard/";
 
 const DEFAULT_FRAME_BUDGET = 30;
 const MAX_FRAME_BUDGET = 140;
@@ -47,11 +44,7 @@ const DEFAULT_TRANSFORM: TftImageTransform = {
 };
 
 export function GifBrowser({ busy, onApply }: Props) {
-  const [provider, setProvider] = useState<GifProvider>("giphy");
-  const [apiKeys, setApiKeys] = useState<Record<GifProvider, string>>(() => ({
-    giphy: readStoredKey("giphy"),
-    tenor: readStoredKey("tenor"),
-  }));
+  const [apiKey, setApiKey] = useState(readStoredKey);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<GifSearchResult[]>([]);
   const [selected, setSelected] = useState<GifSearchResult | null>(null);
@@ -69,9 +62,9 @@ export function GifBrowser({ busy, onApply }: Props) {
   );
 
   function updateKey(value: string): void {
-    setApiKeys((current) => ({ ...current, [provider]: value }));
+    setApiKey(value);
     try {
-      window.localStorage.setItem(KEY_STORAGE[provider], value);
+      window.localStorage.setItem(KEY_STORAGE, value);
     } catch {
       // Searching still works for this session when local storage is unavailable.
     }
@@ -82,7 +75,7 @@ export function GifBrowser({ busy, onApply }: Props) {
     setError(null);
     setSelected(null);
     try {
-      setResults(await searchGifs(provider, query, apiKeys[provider]));
+      setResults(await searchGifs(query, apiKey));
     } catch (reason) {
       setResults([]);
       setError(formatError(reason));
@@ -112,10 +105,6 @@ export function GifBrowser({ busy, onApply }: Props) {
     setTransform((current) => ({ ...current, [key]: value }));
   }
 
-  const providerName = provider === "giphy" ? "GIPHY" : "Tenor";
-  const setupUrl = provider === "giphy"
-    ? "https://developers.giphy.com/dashboard/"
-    : "https://console.cloud.google.com/apis/library/tenor.googleapis.com";
   let applyLabel = "Apply to TFT";
   if (preparing) applyLabel = "Downloading…";
   else if (busy) applyLabel = "Uploading…";
@@ -124,51 +113,28 @@ export function GifBrowser({ busy, onApply }: Props) {
     <Card
       kicker="Online library"
       title="Find a GIF"
-      action={<Badge tone="accent">Powered by {providerName}</Badge>}
+      action={<Badge tone="accent">Powered by GIPHY</Badge>}
     >
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_330px]">
         <div className="min-w-0">
           <div className="flex flex-wrap items-end gap-3">
-            <div className="inline-flex overflow-hidden rounded-md border border-line">
-              {(["giphy", "tenor"] as GifProvider[]).map((candidate) => (
-                <button
-                  key={candidate}
-                  type="button"
-                  onClick={() => {
-                    setProvider(candidate);
-                    setResults([]);
-                    setSelected(null);
-                    setError(null);
-                  }}
-                  className={[
-                    "px-3 py-2 text-xs font-medium uppercase tracking-wider transition",
-                    provider === candidate
-                      ? "bg-accent-500/30 text-fg-0"
-                      : "bg-surface-raised text-fg-2 hover:bg-surface-elevated",
-                  ].join(" ")}
-                >
-                  {candidate}
-                </button>
-              ))}
-            </div>
             <label className="min-w-52 flex-1">
-              <span className="kicker mb-1 block">{providerName} API key</span>
+              <span className="kicker mb-1 block">GIPHY API key</span>
               <input
                 className="w-full"
                 type="password"
-                value={apiKeys[provider]}
+                value={apiKey}
                 onChange={(event) => updateKey(event.target.value)}
-                placeholder={`Paste your ${providerName} key`}
+                placeholder="Paste your GIPHY key"
                 autoComplete="off"
               />
             </label>
-            <Button variant="ghost" size="sm" onClick={() => void openUrl(setupUrl)}>
+            <Button variant="ghost" size="sm" onClick={() => void openUrl(SETUP_URL)}>
               Get a key
             </Button>
           </div>
           <p className="mt-2 text-xs text-fg-3">
-            Keys stay on this Mac and are sent only to the selected provider.
-            {provider === "tenor" && " Tenor no longer accepts new API clients; existing keys remain supported."}
+            Your key stays on this Mac and is sent only to GIPHY.
           </p>
 
           <form
@@ -417,9 +383,9 @@ function EditorSelect({
   );
 }
 
-function readStoredKey(provider: GifProvider): string {
+function readStoredKey(): string {
   try {
-    return window.localStorage.getItem(KEY_STORAGE[provider]) ?? "";
+    return window.localStorage.getItem(KEY_STORAGE) ?? "";
   } catch {
     return "";
   }

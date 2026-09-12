@@ -1202,7 +1202,7 @@ async fn apply_tft_image(
     Ok(())
 }
 
-/// Apply GIF bytes selected through the client-side GIPHY/Tenor browser.
+/// Apply GIF bytes selected through the client-side GIPHY browser.
 /// Search credentials never cross this IPC boundary; only the selected media
 /// and editor transform reach Rust. The size cap bounds JSON IPC and decoding.
 #[tauri::command]

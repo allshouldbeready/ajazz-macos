@@ -13,9 +13,7 @@
       "identifier": "http:default",
       "allow": [
         { "url": "https://api.giphy.com/**" },
-        { "url": "https://*.giphy.com/**" },
-        { "url": "https://tenor.googleapis.com/**" },
-        { "url": "https://*.tenor.com/**" }
+        { "url": "https://*.giphy.com/**" }
       ]
     }
   ]

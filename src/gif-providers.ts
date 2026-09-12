@@ -1,10 +1,8 @@
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
 
-export type GifProvider = "giphy" | "tenor";
-
 export interface GifSearchResult {
   id: string;
-  provider: GifProvider;
+  provider: "giphy";
   title: string;
   previewUrl: string;
   downloadUrl: string;
@@ -17,22 +15,18 @@ const SEARCH_LIMIT = 18;
 const MAX_DOWNLOAD_BYTES = 15 * 1024 * 1024;
 
 export async function searchGifs(
-  provider: GifProvider,
   query: string,
   apiKey: string,
 ): Promise<GifSearchResult[]> {
   const term = query.trim().slice(0, 50);
   const key = apiKey.trim();
   if (!term) throw new Error("Enter a GIF search term.");
-  if (!key) throw new Error(`Enter a ${provider === "giphy" ? "GIPHY" : "Tenor"} API key.`);
-
-  return provider === "giphy"
-    ? searchGiphy(term, key)
-    : searchTenor(term, key);
+  if (!key) throw new Error("Enter a GIPHY API key.");
+  return searchGiphy(term, key);
 }
 
 export async function downloadGif(result: GifSearchResult): Promise<number[]> {
-  if (!isAllowedMediaUrl(result.downloadUrl, result.provider)) {
+  if (!isAllowedMediaUrl(result.downloadUrl)) {
     throw new Error("The provider returned an untrusted media URL.");
   }
   const response = await httpFetch(result.downloadUrl, { method: "GET" });
@@ -79,7 +73,7 @@ async function searchGiphy(query: string, apiKey: string): Promise<GifSearchResu
     const preview = item.images?.fixed_width_small ?? item.images?.fixed_width;
     const download = item.images?.fixed_width ?? item.images?.downsized_medium;
     if (!item.id || !preview?.url || !download?.url) return [];
-    if (!isAllowedMediaUrl(preview.url, "giphy") || !isAllowedMediaUrl(download.url, "giphy")) {
+    if (!isAllowedMediaUrl(preview.url) || !isAllowedMediaUrl(download.url)) {
       return [];
     }
     return [{
@@ -95,56 +89,12 @@ async function searchGiphy(query: string, apiKey: string): Promise<GifSearchResu
   });
 }
 
-async function searchTenor(query: string, apiKey: string): Promise<GifSearchResult[]> {
-  const params = new URLSearchParams({
-    key: apiKey,
-    client_key: "ajazz_macos",
-    q: query,
-    limit: String(SEARCH_LIMIT),
-    contentfilter: "medium",
-    locale: "en_AU",
-    country: "AU",
-    media_filter: "gif,tinygif",
-  });
-  const response = await httpFetch(`https://tenor.googleapis.com/v2/search?${params}`, {
-    method: "GET",
-  });
-  if (!response.ok) throw new Error(`Tenor search failed (${response.status}).`);
-  const payload = (await response.json()) as {
-    results?: Array<{
-      id?: string;
-      content_description?: string;
-      itemurl?: string;
-      media_formats?: Record<string, { url?: string; dims?: number[] }>;
-    }>;
-  };
-  return (payload.results ?? []).flatMap((item) => {
-    const preview = item.media_formats?.tinygif ?? item.media_formats?.gif;
-    const download = item.media_formats?.gif ?? item.media_formats?.tinygif;
-    if (!item.id || !preview?.url || !download?.url) return [];
-    if (!isAllowedMediaUrl(preview.url, "tenor") || !isAllowedMediaUrl(download.url, "tenor")) {
-      return [];
-    }
-    return [{
-      id: item.id,
-      provider: "tenor" as const,
-      title: item.content_description?.trim() || "Untitled GIF",
-      previewUrl: preview.url,
-      downloadUrl: download.url,
-      pageUrl: item.itemurl ?? "https://tenor.com",
-      width: positiveNumber(download.dims?.[0], 200),
-      height: positiveNumber(download.dims?.[1], 200),
-    }];
-  });
-}
-
-function isAllowedMediaUrl(value: string, provider: GifProvider): boolean {
+function isAllowedMediaUrl(value: string): boolean {
   try {
     const url = new URL(value);
     if (url.protocol !== "https:") return false;
     const host = url.hostname.toLowerCase();
-    if (provider === "giphy") return host === "giphy.com" || host.endsWith(".giphy.com");
-    return host === "tenor.com" || host.endsWith(".tenor.com");
+    return host === "giphy.com" || host.endsWith(".giphy.com");
   } catch {
     return false;
   }

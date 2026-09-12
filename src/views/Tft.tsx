@@ -159,14 +159,13 @@ export function Tft() {
       await invokeDeviceWrite(
         "apply_tft_media_bytes",
         { bytes, transform },
-        `Convert and upload “${result.title}” from ${result.provider === "giphy" ? "GIPHY" : "Tenor"} to the TFT.`,
+        `Convert and upload “${result.title}” from GIPHY to the TFT.`,
       );
-      const provider = result.provider === "giphy" ? "GIPHY" : "Tenor";
       setLastTft(saveLastApplied("tft", {
         kind: "image",
-        label: `${result.title} · ${provider}`,
+        label: `${result.title} · GIPHY`,
       } satisfies LastTftState));
-      setInfo(`Uploaded “${result.title}” from ${provider}. Verify it on the display.`);
+      setInfo(`Uploaded “${result.title}” from GIPHY. Verify it on the display.`);
     } catch (error) {
       setErr(formatError(error));
       throw error;

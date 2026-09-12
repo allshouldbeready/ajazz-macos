@@ -33,7 +33,7 @@ wireless use.
 - ANSI base and Fn-layer keymap editing with factory-default staging
 - Macro recording, editing, capacity checks, and assignment
 - TFT built-in selection, factory reset, PNG/JPEG upload, and animated GIF upload
-- In-app GIPHY/Tenor search with a 128 × 128 crop, resize, speed, and frame editor
+- In-app GIPHY search with a 128 × 128 crop, resize, speed, and frame editor
 - Session-scoped confirmation before the app performs its first hardware write
 - CLI diagnostics backed by the same protocol library as the desktop app
 

@@ -1,19 +1,16 @@
 # Online GIF browser and TFT editor
 
-The TFT page can search GIPHY or Tenor without an AJAZZ macOS proxy. Search
-requests originate in the desktop client, and the selected provider receives
-the API key and search term directly.
+The TFT page searches GIPHY without an AJAZZ macOS proxy. Search requests
+originate in the desktop client, and GIPHY receives the API key and search term
+directly.
 
 ## Provider setup
 
-- GIPHY requires an API key from the
-  [GIPHY developer dashboard](https://developers.giphy.com/dashboard/). Its
-  API documentation requires client-side search and visible "Powered by
-  GIPHY" attribution, both of which the app preserves.
-- Tenor v2 requires an existing Google Cloud Tenor API key and a stable
-  `client_key`. Google states that new Tenor API clients have not been
-  accepted since January 2026, so this option is retained for people who
-  already have a key.
+GIPHY requires an API key from the
+[GIPHY developer dashboard](https://developers.giphy.com/dashboard/). Its API
+documentation requires client-side search and visible "Powered by GIPHY"
+attribution, both of which the app preserves. Tenor is intentionally omitted
+because it no longer accepts new API clients.
 
 Keys are stored only in the app's local WebView storage on the current Mac.
 They are not committed, synced, logged, or passed to the Rust/HID layer. Users
