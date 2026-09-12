@@ -36,7 +36,10 @@ This Code of Conduct applies within all project spaces — the GitHub repository
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behaviour may be reported by opening a private issue or by contacting the maintainers through the channels listed in [SECURITY.md](SECURITY.md). All complaints will be reviewed and investigated promptly and fairly.
+Instances of abusive, harassing, or otherwise unacceptable behaviour may be
+reported confidentially through a
+[private security advisory](https://github.com/allshouldbeready/ajazz-macos/security/advisories/new).
+All complaints will be reviewed and investigated promptly and fairly.
 
 All project maintainers are obligated to respect the privacy and security of the reporter of any incident.
 

@@ -1,26 +1,29 @@
 # Installing AJAZZ macOS
 
-`AJAZZ macOS` is currently distributed as source — pre-built signed `.dmg`s will land on the [Releases](https://github.com/allshouldbeready/ajazz-macos/releases) page once the CI codesigning pipeline is wired up.
+`AJAZZ macOS` is currently distributed as source. There are no official public
+binaries. A future release must be signed, notarized, hardware-tested, and
+include complete third-party license notices.
 
 ## Prerequisites
 
 | Tool | Version | Why |
 |---|---|---|
-| **Rust** | 1.82+ | The protocol library, CLI, and Tauri shell are all Rust. |
-| **Node.js** | 20+ | TypeScript / React frontend build. |
-| **pnpm** | 9+ | Frontend package manager. |
+| **Rust** | 1.90 | Pinned by `rust-toolchain.toml`. |
+| **Node.js** | 24 | pnpm requires Node.js 22.13 or later. |
+| **pnpm** | 11.19.0 | Pinned by `package.json`. |
 | **macOS** | 11+ (Big Sur) | The Tauri shell ships with this minimum target. |
 
 ```bash
 # macOS (Homebrew):
 brew install rustup-init pnpm
 rustup-init -y --default-toolchain stable
-nvm install 20  # or any Node 20 source you trust
+nvm install 24  # or any Node 24 source you trust
 
 # Verify
-rustc --version    # → rustc 1.82.x …
-node --version     # → v20.x.x
-pnpm --version     # → 9.x.x
+export PATH="$HOME/.cargo/bin:$PATH"
+rustc --version    # → rustc 1.90.x …
+node --version     # → v24.x.x
+pnpm --version     # → 11.19.x
 ```
 
 ## Build the desktop app
@@ -28,18 +31,20 @@ pnpm --version     # → 9.x.x
 ```bash
 git clone https://github.com/allshouldbeready/ajazz-macos.git
 cd ajazz-macos
-pnpm install
+pnpm install --frozen-lockfile
 
-# Production-style bundle (creates src-tauri/target/release/bundle/dmg/*.dmg)
+# Production-style bundle (creates target/release/bundle/dmg/*.dmg)
 pnpm tauri:build
 
 # Or just the .app for quick testing
 pnpm tauri:build --bundles app
 ```
 
-Open the resulting `.dmg`, drag **AJAZZ macOS.app** into Applications, and launch.
+Open your locally built `.dmg`, drag **AJAZZ macOS.app** into Applications, and launch.
 
-> macOS Gatekeeper will mark the unsigned binary as quarantined on first launch. To approve it, right-click the app and choose **Open**, then confirm in the dialog. After that it launches normally. We'll move to signed + notarised builds before 1.0.
+> The local build is unsigned and not notarized. macOS may require you to
+> control-click the app, choose **Open**, and confirm. Only bypass Gatekeeper
+> for a build you produced from a revision you inspected.
 
 ## Build just the CLI
 

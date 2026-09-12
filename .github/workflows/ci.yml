@@ -134,14 +134,6 @@ jobs:
           # No codesigning in CI yet — local-only builds for now.
           TAURI_SIGNING_PRIVATE_KEY: ""
 
-      - name: Upload .app artefact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ajazz-macos-${{ github.sha }}
-          # Cargo workspace puts build output under the *workspace-root*
-          # target/, not src-tauri/target/. Tauri's bundler then drops the
-          # .app at target/release/bundle/macos/AJAZZ macOS.app —
-          # mind the spaces in the filename, that's why the glob is here.
-          path: target/release/bundle/macos/*.app
-          if-no-files-found: error
-          retention-days: 14
+      # Do not upload unsigned binaries from CI. Public binary distribution is
+      # gated on signing/notarization, hardware acceptance, and generation of a
+      # complete license bundle for the exact resolved dependency graph.

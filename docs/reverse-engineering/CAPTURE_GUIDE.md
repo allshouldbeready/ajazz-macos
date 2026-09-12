@@ -97,7 +97,7 @@ Drop the `.pcapng` files into one of:
 2. **Or send the path** if they live elsewhere on the Mac.
 
 Then either:
-- Open a [Protocol Finding issue](https://github.com/wsclx/ak820pro-modder/issues/new?template=protocol_finding.yml) describing what you captured, OR
+- Open a [Protocol Finding issue](https://github.com/allshouldbeready/ajazz-macos/issues/new?template=protocol_finding.yml) describing what you captured, OR
 - Ping the maintainers and we'll dig in.
 
 ---

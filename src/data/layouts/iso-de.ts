@@ -4,8 +4,7 @@ import type { KeyboardLayout, PhysicalKey } from "./types";
 /**
  * AK820 Pro **ISO-DE** physical layout.
  *
- * This is the **only** layout `v0.5.0-beta` ships against. The 6×N row grid
- * maps each printed key on the German ISO variant to its firmware slot
+ * The 6×N row grid maps each printed key on the German ISO variant to its firmware slot
  * (0..127 in `GET_KEY` / `SET_KEY` payloads), HID Keyboard Usage Code, and
  * any Tailwind class hints from the official AJAZZ web driver.
  *
@@ -16,9 +15,7 @@ import type { KeyboardLayout, PhysicalKey } from "./types";
  * ISO-UK / JIS hardware. Slot numbers overlap (firmware-internal addresses
  * are constant) but printed legends and physical key positions diverge.
  * Rendering the surface with the wrong layout will mislabel keys and
- * confuse users. Multi-layout support is on the roadmap — see README §
- * Roadmap. Until then, the app declares itself ISO-DE-only in the
- * sidebar footer.
+ * confuse users. Select the matching physical layout in the app.
  */
 export const ISO_DE_LAYOUT_ROWS: PhysicalKey[][] = json as PhysicalKey[][];
 
@@ -30,6 +27,6 @@ export const ISO_DE_LAYOUT_SLOTS: number[] = ISO_DE_LAYOUT_ROWS.flat().map(
 export const ISO_DE_LAYOUT: KeyboardLayout = {
   id: "iso-de",
   displayName: "ISO-DE",
-  description: "German ISO (QWERTZ) — the only layout v0.5.0-beta is built and tested against.",
+  description: "German ISO (QWERTZ) layout.",
   rows: ISO_DE_LAYOUT_ROWS,
 };

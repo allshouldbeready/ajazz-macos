@@ -39,6 +39,13 @@
       "icons/128x128@2x.png",
       "icons/icon.png"
     ],
+    "resources": {
+      "../LICENSE": "legal/LICENSE",
+      "../NOTICE.md": "legal/NOTICE.md",
+      "../DISCLAIMER.md": "legal/DISCLAIMER.md",
+      "../PRIVACY.md": "legal/PRIVACY.md",
+      "../THIRD_PARTY_NOTICES.md": "legal/THIRD_PARTY_NOTICES.md"
+    },
     "macOS": {
       "entitlements": "entitlements.plist",
       "minimumSystemVersion": "11.0"

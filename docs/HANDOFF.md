@@ -276,8 +276,7 @@ ak820pro-modder/
 │       ├── layouts/
 │       │   ├── types.ts            <- PhysicalKey + KeyboardLayout + LayoutId
 │       │   ├── index.ts            <- registry, default, resolveLayout()
-│       │   ├── iso-de.json         <- ISO-DE physical positions (only one
-│       │   │                          v0.5.0-beta ships)
+│       │   ├── iso-de.json         <- ISO-DE physical positions
 │       │   └── iso-de.ts           <- typed wrapper
 │       ├── hid-usage-names.ts      <- HID code → human label
 │       └── action-catalog.ts       <- picker groups + Action union type
@@ -287,7 +286,7 @@ ak820pro-modder/
 ├── tsconfig.json
 ├── package.json
 ├── Cargo.toml                      <- workspace root
-├── rust-toolchain.toml             <- pinned to 1.82+
+├── rust-toolchain.toml             <- pinned to 1.90
 └── tests/fixtures/
 ```
 
@@ -330,8 +329,7 @@ ak820pro-modder/
 
 ## 6. Critical Learnings (foot guns the next session would otherwise hit)
 
-These are saved in `/Users/mario/.claude/projects/-Users-mario-DEV-ak820pro/memory/MEMORY.md`
-plus inline comments at the call sites. Don't re-discover them.
+These are retained here and in inline comments at the relevant call sites.
 
 ### 6.1 The upstream Linux ports are wrong on macOS
 `gohv/EPOMAKER-Ajazz-AK820-Pro` and `TaxMachine/...` build packets the
