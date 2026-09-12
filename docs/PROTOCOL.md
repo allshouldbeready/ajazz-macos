@@ -28,7 +28,7 @@ collections rather than the USB product ID, which is shared.
 | Lighting (20 modes) | 1 | **Decoded; legacy write hardware-tested** | supplied installer + online driver |
 | Sleep timer | 2 | Partially decoded | gohv (likely also wrong layout) |
 | Clock sync | 2 | **Decoded** | official online driver (`setTftDateTime`) |
-| Battery status | 2 | **Decoded** (read) | online-driver (GET_DEVICE_INFO) |
+| Battery status | 2 | **Decoded** (online read; legacy receiver read) | online-driver + supplied installer |
 | Onboard profile switch | 2 | **Not decoded** | needs RE |
 | Keymap / layers | 3 | **Decoded** (read+write) | online-driver (GET_KEY / SET_KEY) |
 | Macros (512 B/slot) | 4 | **Decoded** | online-driver (GET_MACRO / SET_MACRO) |
@@ -130,6 +130,20 @@ one 64-byte settings payload, then `SAVE`. The data bytes are:
 
 This transport has no corresponding settings read in the supplied driver, so
 the app presents vendor defaults and labels the operation as write-only.
+
+### Supplied-driver wireless battery query (`0x20 0x01`)
+
+The supplied Windows application polls battery only when its host-side
+connection mode is the 2.4 GHz receiver (`PID 0xFDFD`). It writes one
+unnumbered output report beginning `00 20 01 00`; byte 32 is the wrapping sum
+of the request bytes (`0x21`). A valid input response begins `20 01 00`, with
+battery percentage at byte 3. The protocol does not expose charging state.
+
+The mode check can be bypassed, but that does not make the wired controller
+route the receiver command. On the connected wired ANSI `bcdDevice 0x0114`, a
+complete 65-byte request was accepted by macOS and timed out with no response.
+The app only queries this protocol automatically when the actual receiver PID
+is present, and never converts a timeout into a battery value.
 
 ## Online-driver transport (confirmed against AJAZZ firmware 1.07)
 

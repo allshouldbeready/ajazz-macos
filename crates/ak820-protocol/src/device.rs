@@ -19,10 +19,14 @@ use crate::legacy_protocol::{
 use crate::protocol::{
     build_frame, cmd, HEADER_LEN, MAGIC_INCOMING, PACKET_LEN, PAYLOAD_PER_PACKET, REPORT_ID,
 };
-use crate::{error::*, CONTROL_INTERFACE, PRODUCT_IDS, VENDOR_ID};
+use crate::{error::*, CONTROL_INTERFACE, LEGACY_RECEIVER_PRODUCT_ID, PRODUCT_IDS, VENDOR_ID};
 
 /// Default response timeout (ms) for non-streaming GET/SET commands.
 const DEFAULT_TIMEOUT_MS: i32 = 500;
+const LEGACY_BATTERY_COMMAND: u8 = 0x20;
+const LEGACY_BATTERY_SUBCOMMAND: u8 = 0x01;
+const LEGACY_BATTERY_CHECKSUM_OFFSET: usize = 32;
+const LEGACY_BATTERY_TIMEOUT_MS: i32 = 750;
 
 fn remaining_timeout_ms(deadline: std::time::Instant, now: std::time::Instant) -> Option<i32> {
     let millis = deadline
@@ -46,6 +50,100 @@ fn matching_response_payload(buf: &[u8], expected_cmd: u8) -> Result<Option<Vec<
         return Ok(None);
     }
     Ok(Some(buf[HEADER_LEN..].to_vec()))
+}
+
+fn legacy_battery_request(output_report_bytes: usize) -> Result<Vec<u8>> {
+    if output_report_bytes < LEGACY_BATTERY_CHECKSUM_OFFSET {
+        return Err(Error::UnexpectedResponse(format!(
+            "battery endpoint output report is only {output_report_bytes} bytes"
+        )));
+    }
+    // hidapi expects the unnumbered report ID as byte zero. The Windows driver
+    // places its checksum at byte 32 of that report and pads to the endpoint's
+    // declared output-report length.
+    let mut request = vec![0u8; output_report_bytes + 1];
+    request[1] = LEGACY_BATTERY_COMMAND;
+    request[2] = LEGACY_BATTERY_SUBCOMMAND;
+    request[LEGACY_BATTERY_CHECKSUM_OFFSET] = request
+        .iter()
+        .fold(0u8, |sum, byte| sum.wrapping_add(*byte));
+    Ok(request)
+}
+
+fn parse_legacy_battery_response(response: &[u8]) -> Result<Option<u8>> {
+    let payload = if response.starts_with(&[0, LEGACY_BATTERY_COMMAND]) {
+        &response[1..]
+    } else {
+        response
+    };
+    if payload.len() < 4 || payload[..3] != [LEGACY_BATTERY_COMMAND, LEGACY_BATTERY_SUBCOMMAND, 0] {
+        return Ok(None);
+    }
+    let level = payload[3];
+    if level > 100 {
+        return Err(Error::UnexpectedResponse(format!(
+            "invalid battery percentage {level}"
+        )));
+    }
+    Ok(Some(level))
+}
+
+fn query_legacy_battery_device(
+    device: &HidDevice,
+    output_report_bytes: usize,
+    source: &'static str,
+) -> Result<BatteryStatus> {
+    let request = legacy_battery_request(output_report_bytes)?;
+    device.write(&request)?;
+
+    let deadline = std::time::Instant::now()
+        + std::time::Duration::from_millis(LEGACY_BATTERY_TIMEOUT_MS as u64);
+    let mut response = [0u8; 4096];
+    loop {
+        let Some(remaining) = remaining_timeout_ms(deadline, std::time::Instant::now()) else {
+            return Err(Error::UnexpectedResponse(
+                "timeout waiting for the legacy battery response".into(),
+            ));
+        };
+        let read = device.read_timeout(&mut response, remaining)?;
+        if read == 0 {
+            continue;
+        }
+        if let Some(level) = parse_legacy_battery_response(&response[..read])? {
+            return Ok(BatteryStatus {
+                battery_level: level,
+                charging: None,
+                source: source.to_owned(),
+            });
+        }
+    }
+}
+
+/// Query the supplied ANSI driver's 2.4 GHz receiver battery endpoint.
+///
+/// This sends one non-persistent query and never enters a configuration or
+/// firmware transaction. The receiver must be physically present and linked.
+pub fn query_receiver_battery() -> Result<BatteryStatus> {
+    let candidates = enumerate()?;
+    let receiver = candidates
+        .iter()
+        .find(|candidate| candidate.pid == LEGACY_RECEIVER_PRODUCT_ID && candidate.interface == 3)
+        .or_else(|| {
+            candidates
+                .iter()
+                .find(|candidate| candidate.pid == LEGACY_RECEIVER_PRODUCT_ID)
+        })
+        .ok_or(Error::DeviceNotFound {
+            vid: VENDOR_ID,
+            interface: 3,
+        })?;
+    let api = HidApi::new()?;
+    let device = api.open_path(&std::ffi::CString::new(receiver.path.clone()).unwrap())?;
+    let mut descriptor = [0u8; 512];
+    let descriptor_len = device.get_report_descriptor(&mut descriptor)?;
+    let output_report_bytes = parse_max_output_report_size(&descriptor[..descriptor_len])
+        .ok_or_else(|| Error::UnexpectedResponse("receiver has no output report".into()))?;
+    query_legacy_battery_device(&device, output_report_bytes, "2.4g-receiver")
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -329,6 +427,25 @@ impl Connection {
 
     pub fn raw(&self) -> &HidDevice {
         &self.device
+    }
+
+    /// Diagnostic-only bypass of the Windows driver's receiver-mode gate.
+    /// The connected legacy wired firmware has been observed to time out; this
+    /// remains available to test other hardware revisions without pretending a
+    /// timeout is a battery value.
+    pub fn query_legacy_battery_bypass(&self) -> Result<BatteryStatus> {
+        if self.transport != TransportKind::LegacyFeature {
+            return Err(Error::NotImplemented(
+                "wired battery bypass requires supplied-driver firmware",
+            ));
+        }
+        let mut descriptor = [0u8; 512];
+        let descriptor_len = self.device.get_report_descriptor(&mut descriptor)?;
+        let output_report_bytes = parse_max_output_report_size(&descriptor[..descriptor_len])
+            .ok_or_else(|| {
+                Error::UnexpectedResponse("control endpoint has no output report".into())
+            })?;
+        query_legacy_battery_device(&self.device, output_report_bytes, "wired-bypass")
     }
 
     pub fn probe(&self) -> Result<ProbeReport> {
@@ -1093,6 +1210,15 @@ pub struct ProbeReport {
     pub firmware_version: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BatteryStatus {
+    pub battery_level: u8,
+    /// The receiver protocol reports percentage only; it does not report
+    /// whether the keyboard is charging.
+    pub charging: Option<bool>,
+    pub source: String,
+}
+
 #[cfg(test)]
 mod device_tests {
     use super::*;
@@ -1133,5 +1259,35 @@ mod device_tests {
             TransportKind::LegacyFeature.ensure_online_output(),
             Err(Error::NotImplemented(_))
         ));
+    }
+
+    #[test]
+    fn legacy_battery_request_matches_supplied_driver() {
+        let request = legacy_battery_request(64).unwrap();
+        assert_eq!(request.len(), 65);
+        assert_eq!(&request[..4], &[0, 0x20, 0x01, 0]);
+        assert_eq!(request[32], 0x21);
+        assert!(request[33..].iter().all(|byte| *byte == 0));
+    }
+
+    #[test]
+    fn legacy_battery_response_accepts_numbered_and_unnumbered_shapes() {
+        assert_eq!(
+            parse_legacy_battery_response(&[0x20, 0x01, 0, 73]).unwrap(),
+            Some(73)
+        );
+        assert_eq!(
+            parse_legacy_battery_response(&[0, 0x20, 0x01, 0, 64]).unwrap(),
+            Some(64)
+        );
+    }
+
+    #[test]
+    fn legacy_battery_response_rejects_invalid_values() {
+        assert!(parse_legacy_battery_response(&[0x20, 0x01, 0, 101]).is_err());
+        assert_eq!(
+            parse_legacy_battery_response(&[0x04, 0x20, 0x01, 50]).unwrap(),
+            None
+        );
     }
 }

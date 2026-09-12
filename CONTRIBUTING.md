@@ -8,6 +8,11 @@ incompatible with this project.
 
 ## Before opening a pull request
 
+Every user-facing software update must increment the version consistently in
+the workspace, frontend package, Tauri configuration, and UI version constant,
+and must add a dated entry to `CHANGELOG.md`. Do not merge an application change
+under a previously published version number.
+
 - Read the [Code of Conduct](CODE_OF_CONDUCT.md), [security policy](SECURITY.md),
   [disclaimer](DISCLAIMER.md), and protocol notes relevant to the change.
 - Open an issue before a large feature or protocol change.

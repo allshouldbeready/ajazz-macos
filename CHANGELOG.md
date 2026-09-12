@@ -33,6 +33,42 @@ Planned for 0.8.x
 - Browser-tab media support in Now-Playing (currently only Music.app + Spotify desktop) — **declined for now** on privacy grounds; revisit if a non-invasive surface emerges.
 - JIS physical layout once hardware is available for verification.
 
+## [0.7.1-beta] — 2026-09-13
+
+### Added
+
+- Added the supplied ANSI driver's one-shot `0x20/0x01` 2.4 GHz receiver
+  battery query to the reusable protocol crate, CLI, and System view. Battery
+  values are accepted only from a matching response and within `0..=100`;
+  charging state is explicitly unavailable on this protocol.
+- Added `ak820 battery probe` for receiver diagnostics and an explicit
+  `--wired-bypass` option for testing other legacy hardware revisions.
+- Added read-only macOS Bluetooth battery discovery to Connectivity. It reports
+  a percentage only when macOS itself publishes one, and distinguishes paired,
+  connected-without-battery, and connected-with-battery states.
+- Recognise the ANSI driver's documented alternate wired PID `0x800A` and
+  receiver PID `0xFDFD`, while continuing to exclude bootloader PID `0x7140`.
+
+### Changed
+
+- Renamed the public product to **AK820 Pro Control** and the repository to
+  `ak820-pro-macos`, retaining legacy storage identifiers for upgrade
+  continuity.
+- The System view now distinguishes online-firmware device information,
+  receiver-sourced battery percentage, and unavailable wired read-back.
+- Established a release rule requiring every application update to increment
+  all version sources and receive its own dated changelog entry.
+
+### Hardware findings
+
+- Sending the receiver battery request directly to the connected wired ANSI
+  `bcdDevice 0x0114` endpoint wrote the complete 65-byte report but produced no
+  response. The app therefore does not poll that endpoint or invent a value.
+- The paired `PID 0xFEFE` Bluetooth identity was not connected and macOS held
+  no cached battery property. The new reader correctly reports that paired but
+  disconnected state; live percentage and receiver validation still require
+  switching the keyboard to those physical modes.
+
 ## [0.7.0-beta] — 2026-05-14
 
 Mid-cycle feature release. Three new top-level capabilities — audio-reactive lighting (Alpha), iCloud-Drive profile sync (Beta), and four additional physical layouts behind a sidebar picker (Beta) — plus two app-wide robustness fixes (formatted error banners; transparent auto-reconnect on HID handle loss) and a polish pass on the keyboard surface (real ISO-Enter L-shape, slot-based nav-column detection).
@@ -121,7 +157,8 @@ First public preview. Five feature phases implemented end-to-end on the AK820 Pr
 - The Page-type enum has 16 values; `Macro` is **6**, not 4 (4 is `SYSTEM_KEY`). A wrong value silently no-ops.
 - Macro wire flags are inverted-looking: `0xB0`/`0x30` is keyboard, `0x90`/`0x10` is mouse.
 
-[Unreleased]: https://github.com/wsclx/ak820pro-modder/compare/v0.7.0-beta...HEAD
-[0.7.0-beta]: https://github.com/wsclx/ak820pro-modder/releases/tag/v0.7.0-beta
-[0.6.0-beta]: https://github.com/wsclx/ak820pro-modder/releases/tag/v0.6.0-beta
-[0.5.0-beta]: https://github.com/wsclx/ak820pro-modder/releases/tag/v0.5.0-beta
+[Unreleased]: https://github.com/allshouldbeready/ak820-pro-macos/compare/v0.7.1-beta...HEAD
+[0.7.1-beta]: https://github.com/allshouldbeready/ak820-pro-macos/compare/v0.7.0-beta...v0.7.1-beta
+[0.7.0-beta]: https://github.com/allshouldbeready/ak820-pro-macos/releases/tag/v0.7.0-beta
+[0.6.0-beta]: https://github.com/allshouldbeready/ak820-pro-macos/releases/tag/v0.6.0-beta
+[0.5.0-beta]: https://github.com/allshouldbeready/ak820-pro-macos/releases/tag/v0.5.0-beta

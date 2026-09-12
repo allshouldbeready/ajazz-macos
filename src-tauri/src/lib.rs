@@ -19,6 +19,7 @@ use tokio::sync::Mutex;
 use tracing_subscriber::EnvFilter;
 
 mod automations;
+mod bluetooth_battery;
 mod icloud_sync;
 mod now_playing;
 mod now_playing_tft;
@@ -284,6 +285,13 @@ fn list_devices() -> Result<Vec<DeviceInfo>, AppError> {
     Ok(ak820_protocol::enumerate()?)
 }
 
+#[tauri::command]
+async fn get_bluetooth_battery() -> Result<bluetooth_battery::BluetoothBatteryStatus, AppError> {
+    tauri::async_runtime::spawn_blocking(bluetooth_battery::query)
+        .await
+        .map_err(|error| AppError::Protocol(format!("Bluetooth query task failed: {error}")))?
+}
+
 /// Read-only liveness probe. Crucially does NOT touch the cached HID handle
 /// in `ConnState` — enumeration is cheap, and locking the mutex from a polling
 /// loop would block view-level operations (lighting set / system reads).
@@ -378,6 +386,14 @@ async fn get_device_info(state: State<'_, Arc<ConnState>>) -> Result<DeviceInfoR
             Ok(conn.get_device_info()?)
         })
         .await
+}
+
+#[tauri::command]
+async fn get_receiver_battery(
+    io: State<'_, Arc<DeviceIoGate>>,
+) -> Result<ak820_protocol::BatteryStatus, AppError> {
+    let _gate = io.0.lock().await;
+    Ok(ak820_protocol::query_receiver_battery()?)
 }
 
 #[tauri::command]
@@ -1318,6 +1334,7 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             list_devices,
+            get_bluetooth_battery,
             probe_device,
             close_device,
             list_lighting_modes,
@@ -1325,6 +1342,7 @@ pub fn run() {
             get_transport_kind,
             apply_lighting,
             get_device_info,
+            get_receiver_battery,
             get_game_mode,
             set_game_mode,
             set_legacy_system_settings,

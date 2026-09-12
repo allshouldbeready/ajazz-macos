@@ -28,6 +28,8 @@ wireless use.
 ## Features
 
 - Device information, battery state, active profile, and capacity reporting
+  where firmware exposes read-back; legacy battery uses the 2.4 GHz receiver,
+  while macOS-published Bluetooth battery status is shown independently
 - Clock, sleep timer, and game-mode settings with read-back where supported
 - All 20 global RGB modes plus custom per-key RGB
 - ANSI base and Fn-layer keymap editing with factory-default staging

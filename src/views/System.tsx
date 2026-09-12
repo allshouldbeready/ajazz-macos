@@ -49,6 +49,16 @@ interface SleepPreset {
   label: string;
 }
 
+interface DeviceCandidate {
+  pid: number;
+}
+
+interface BatteryStatus {
+  battery_level: number;
+  charging: boolean | null;
+  source: string;
+}
+
 interface LegacySystemSettings {
   disable_windows_key: boolean;
   disable_alt_f4: boolean;
@@ -96,6 +106,8 @@ export function System() {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [clockSync, setClockSync] = useState<TftDateTime | null>(null);
+  const [receiverBattery, setReceiverBattery] = useState<BatteryStatus | null>(null);
+  const [batteryNote, setBatteryNote] = useState<string | null>(null);
 
   async function refresh() {
     setBusy(true);
@@ -111,6 +123,20 @@ export function System() {
         setInfo(null);
         setGm(null);
         setDraft(null);
+        const devices = await invoke<DeviceCandidate[]>("list_devices");
+        if (devices.some((device) => device.pid === 0xfdfd)) {
+          try {
+            const battery = await invoke<BatteryStatus>("get_receiver_battery");
+            setReceiverBattery(battery);
+            setBatteryNote("Read from the connected 2.4 GHz receiver. Charging state is not provided.");
+          } catch (batteryError) {
+            setReceiverBattery(null);
+            setBatteryNote(`The receiver did not return a valid battery value: ${formatError(batteryError)}`);
+          }
+        } else {
+          setReceiverBattery(null);
+          setBatteryNote("Battery is unavailable over wired USB. Connect the 2.4 GHz receiver to read it without changing firmware.");
+        }
         const remembered = loadLastApplied<LegacySystemSettings>("system");
         if (remembered) {
           setLegacySettings(remembered.value);
@@ -231,9 +257,24 @@ export function System() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card title="Device" action={info && <Badge tone="good">Read from keyboard</Badge>}>
             {info === null ? (
-              <p className="text-sm text-fg-2">
-                {transport === "legacy-feature" ? "Detailed device reads are unavailable on this firmware." : "Reading…"}
-              </p>
+              transport === "legacy-feature" ? (
+                <div className="space-y-3">
+                  {receiverBattery && (
+                    <BatteryBar
+                      level={receiverBattery.battery_level}
+                      charging={receiverBattery.charging === true}
+                    />
+                  )}
+                  <p className="text-sm leading-relaxed text-fg-2">
+                    {batteryNote ?? "Detailed wired device reads are unavailable on this firmware."}
+                  </p>
+                  <p className="text-xs leading-relaxed text-fg-3">
+                    Current lighting, keymap, macro, System, and TFT values still have no verified read-back path.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-fg-2">Reading…</p>
+              )
             ) : (
               <KVList
                 rows={[

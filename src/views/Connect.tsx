@@ -1,15 +1,23 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { DeviceInfo, ProbeReport } from "../types";
-import { Badge, Button, Card, ErrorBanner, KVList, Mono, hex4, prettyProduct } from "../components/ui";
+import { Badge, BatteryBar, Button, Card, ErrorBanner, KVList, Mono, hex4, prettyProduct } from "../components/ui";
 import { PageHeader } from "../components/Layout";
 import { formatError } from "../errors";
 
 const CONTROL_USAGE_PAGE = 0xff68;
 
+interface BluetoothBatteryStatus {
+  paired: boolean;
+  connected: boolean;
+  battery_level: number | null;
+  source: string;
+}
+
 export function Connect({ onReconnect }: { onReconnect?: () => void }) {
   const [devices, setDevices] = useState<DeviceInfo[] | null>(null);
   const [probe, setProbe] = useState<ProbeReport | null>(null);
+  const [bluetoothBattery, setBluetoothBattery] = useState<BluetoothBatteryStatus | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -19,6 +27,7 @@ export function Connect({ onReconnect }: { onReconnect?: () => void }) {
     try {
       const list = await invoke<DeviceInfo[]>("list_devices");
       setDevices(list);
+      setBluetoothBattery(await invoke<BluetoothBatteryStatus>("get_bluetooth_battery"));
       if (list.some((d) => d.usage_page === CONTROL_USAGE_PAGE)) {
         setProbe(await invoke<ProbeReport>("probe_device"));
       } else {
@@ -76,6 +85,25 @@ export function Connect({ onReconnect }: { onReconnect?: () => void }) {
       )}
 
       <div className="grid gap-6">
+        {bluetoothBattery?.paired && (
+          <Card title="Bluetooth battery" action={<Badge tone={bluetoothBattery.connected ? "good" : "neutral"}>{bluetoothBattery.connected ? "connected" : "paired"}</Badge>}>
+            {bluetoothBattery.battery_level !== null ? (
+              <div className="space-y-3">
+                <BatteryBar level={bluetoothBattery.battery_level} charging={false} />
+                <p className="text-xs leading-relaxed text-fg-3">
+                  Reported by macOS. Bluetooth HID does not provide charging state to this app.
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm leading-relaxed text-fg-2">
+                {bluetoothBattery.connected
+                  ? "macOS sees the keyboard, but it is not publishing a battery percentage."
+                  : "Switch the keyboard to its paired Bluetooth channel and reconnect it to request a battery reading."}
+              </p>
+            )}
+          </Card>
+        )}
+
         <Card title="Control interface">
           {probe === null ? (
             <p className="text-sm text-fg-2">Waiting on a vendor interface…</p>

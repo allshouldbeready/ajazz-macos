@@ -22,3 +22,15 @@ again.
 Connectivity is always live enumeration. TFT diagnostics and custom uploads
 are write-only and use the same explicitly labelled shadow. Host-only features
 such as automations load from their own local data store.
+
+Legacy battery percentage is a separate exception: the supplied driver exposes
+it through the physical 2.4 GHz receiver, not through the wired configuration
+endpoint. The app shows it as receiver-sourced and leaves charging status
+unknown. A wired query timeout remains “unavailable”; it is never displayed as
+zero percent.
+
+Connectivity also asks macOS for the paired AK820 Bluetooth identity. This is
+an operating-system observation, not a vendor-protocol read: the app shows a
+battery percentage only when macOS publishes one, otherwise it explicitly
+distinguishes disconnected from connected-without-battery. It never fabricates
+a Bluetooth value or charging state.

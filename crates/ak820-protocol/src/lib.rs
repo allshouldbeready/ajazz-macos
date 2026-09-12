@@ -11,7 +11,8 @@ pub mod legacy_protocol;
 pub mod protocol;
 
 pub use device::{
-    enumerate, probe_interfaces, Connection, DeviceInfo, InterfaceProbe, TransportKind,
+    enumerate, probe_interfaces, query_receiver_battery, BatteryStatus, Connection, DeviceInfo,
+    InterfaceProbe, TransportKind,
 };
 pub use error::{Error, Result};
 pub use protocol::{Frame, ReportId};
@@ -22,8 +23,12 @@ pub const VENDOR_ID: u16 = 0x0C45;
 /// Known product IDs for the AK820 / AK820 Pro family.
 pub const PRODUCT_IDS: &[u16] = &[
     0x8009, // wired + 2.4 GHz dongle mode
+    0x800A, // alternate wired revision listed by the supplied ANSI driver
     0xFEFE, // Bluetooth 5.1 mode (separate HID stack)
+    0xFDFD, // 2.4 GHz receiver exposed by the supplied ANSI driver
 ];
+
+pub const LEGACY_RECEIVER_PRODUCT_ID: u16 = 0xFDFD;
 
 /// ISP/bootloader PID. Deliberately excluded from [`PRODUCT_IDS`] so normal
 /// enumeration and every connection path ignore it.

@@ -33,6 +33,9 @@ enum Cmd {
     Lighting(LightingCmd),
     /// Read device info (firmware, battery, profile, …)
     Info,
+    /// Read battery data through the supplied driver's wireless protocol
+    #[command(subcommand)]
+    Battery(BatteryCmd),
     /// Synchronise the keyboard TFT clock with the Mac's local time
     SyncClock,
     /// Read or write the game-mode struct (sleep timer, key delay, …)
@@ -50,6 +53,17 @@ enum Cmd {
     /// TFT display diagnostics and upload
     #[command(subcommand)]
     Tft(TftCmd),
+}
+
+#[derive(Subcommand)]
+enum BatteryCmd {
+    /// Query a connected 2.4 GHz receiver, or explicitly test the wired bypass
+    Probe {
+        /// Send the receiver query to the wired legacy endpoint for diagnostics.
+        /// This does not save settings, but known bcdDevice 0x0114 units time out.
+        #[arg(long)]
+        wired_bypass: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -158,6 +172,9 @@ fn main() -> Result<()> {
         Cmd::List => cmd_list(cli.json),
         Cmd::Probe => cmd_probe(cli.json),
         Cmd::Info => cmd_info(cli.json),
+        Cmd::Battery(BatteryCmd::Probe { wired_bypass }) => {
+            cmd_battery_probe(cli.json, wired_bypass)
+        }
         Cmd::SyncClock => cmd_sync_clock(cli.json),
         Cmd::GameMode(GameModeCmd::Get) => cmd_game_mode_get(cli.json),
         Cmd::GameMode(GameModeCmd::SetSleep { value }) => cmd_game_mode_set_sleep(cli.json, value),
@@ -194,6 +211,23 @@ fn main() -> Result<()> {
             dry_run,
         ),
     }
+}
+
+fn cmd_battery_probe(json: bool, wired_bypass: bool) -> Result<()> {
+    let battery = if wired_bypass {
+        let connection = ak820_protocol::Connection::open_control()?;
+        connection.query_legacy_battery_bypass()?
+    } else {
+        ak820_protocol::query_receiver_battery()?
+    };
+    if json {
+        println!("{}", serde_json::to_string_pretty(&battery)?);
+    } else {
+        println!("Battery: {}%", battery.battery_level);
+        println!("Source:  {}", battery.source);
+        println!("Charging status: unavailable from this protocol");
+    }
+    Ok(())
 }
 
 fn cmd_list(json: bool) -> Result<()> {
