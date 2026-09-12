@@ -7,6 +7,15 @@
     "core:default",
     "shell:allow-open",
     "global-shortcut:default",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://api.giphy.com/**" },
+        { "url": "https://*.giphy.com/**" },
+        { "url": "https://tenor.googleapis.com/**" },
+        { "url": "https://*.tenor.com/**" }
+      ]
+    }
   ]
 }

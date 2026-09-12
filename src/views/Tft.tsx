@@ -7,6 +7,8 @@ import { PageHeader } from "../components/Layout";
 import { invokeDeviceWrite } from "../device-write";
 import { formatError } from "../errors";
 import { loadLastApplied, saveLastApplied } from "../device-state";
+import { GifBrowser, type TftImageTransform } from "./GifBrowser";
+import type { GifSearchResult } from "../gif-providers";
 
 interface TftPresetInfo {
   id: string;
@@ -147,6 +149,32 @@ export function Tft() {
     if (requested) setInfo("Cancellation requested. The current HID chunk will finish first.");
   }
 
+  async function applyOnlineGif(
+    result: GifSearchResult,
+    bytes: number[],
+    transform: TftImageTransform,
+  ): Promise<void> {
+    beginOperation();
+    try {
+      await invokeDeviceWrite(
+        "apply_tft_media_bytes",
+        { bytes, transform },
+        `Convert and upload “${result.title}” from ${result.provider === "giphy" ? "GIPHY" : "Tenor"} to the TFT.`,
+      );
+      const provider = result.provider === "giphy" ? "GIPHY" : "Tenor";
+      setLastTft(saveLastApplied("tft", {
+        kind: "image",
+        label: `${result.title} · ${provider}`,
+      } satisfies LastTftState));
+      setInfo(`Uploaded “${result.title}” from ${provider}. Verify it on the display.`);
+    } catch (error) {
+      setErr(formatError(error));
+      throw error;
+    } finally {
+      finishOperation();
+    }
+  }
+
   async function factoryDefault(): Promise<void> {
     beginOperation();
     try {
@@ -191,6 +219,8 @@ export function Tft() {
       )}
 
       <div className="grid gap-6">
+        <GifBrowser busy={busy} onApply={applyOnlineGif} />
+
         <Card
           title={
             <span className="inline-flex items-center gap-2">

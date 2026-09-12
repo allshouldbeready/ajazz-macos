@@ -7,7 +7,7 @@ use ak820_protocol::{
     commands::system::{
         DeviceInfoReport, GameMode, LegacySystemSettings, SleepPreset, SLEEP_PRESETS,
     },
-    commands::tft_image::{self, FitMode},
+    commands::tft_image::{self, FitMode, ImageTransform},
     commands::tft_presets::{self, TftPresetInfo},
     device::ProbeReport,
     Connection, DeviceInfo,
@@ -40,6 +40,17 @@ use tft_memory::TftMemory;
 /// HID codes F13..F24 reserved as global-shortcut markers for automations.
 /// Inclusive range — gives the user 12 keyboard-triggerable automations.
 const MARKER_HID_RANGE: std::ops::RangeInclusive<u8> = 104..=115;
+const MAX_TFT_SOURCE_BYTES: usize = 15 * 1024 * 1024;
+
+fn validate_tft_source_bytes(bytes: &[u8]) -> Result<(), AppError> {
+    if bytes.is_empty() || bytes.len() > MAX_TFT_SOURCE_BYTES {
+        return Err(AppError::Protocol(format!(
+            "GIF must be between 1 byte and {} MiB",
+            MAX_TFT_SOURCE_BYTES / 1024 / 1024
+        )));
+    }
+    Ok(())
+}
 
 /// Map an HID Keyboard Usage Code to the string label
 /// `tauri-plugin-global-shortcut` expects (and back-channel parses).
@@ -1146,19 +1157,52 @@ async fn apply_tft_image(
         .map_err(|e| AppError::Protocol(format!("join read: {e}")))?
         .map_err(|e| AppError::Protocol(format!("read image: {e}")))?;
 
-    let fit_mode = FitMode::parse_lenient(&fit);
+    let transform = ImageTransform {
+        fit: FitMode::parse_lenient(&fit),
+        ..ImageTransform::default()
+    };
     // Keep a copy for the memory layer — animation_from_bytes consumes
     // the slice but we want to re-decode after side-effecting commands
     // without going back to disk.
     let bytes_for_memory = bytes.clone();
-    let anim =
-        tokio::task::spawn_blocking(move || tft_image::animation_from_bytes(&bytes, fit_mode))
-            .await
-            .map_err(|e| AppError::Protocol(format!("join decode: {e}")))?
-            .map_err(AppError::from)?;
+    let transform_for_decode = transform.clone();
+    let anim = tokio::task::spawn_blocking(move || {
+        tft_image::animation_from_bytes_with_transform(&bytes, &transform_for_decode)
+    })
+    .await
+    .map_err(|e| AppError::Protocol(format!("join decode: {e}")))?
+    .map_err(AppError::from)?;
 
     upload_tft_with_progress(app, io, upload, anim).await?;
-    memory.remember_image(bytes_for_memory, fit_mode).await;
+    memory.remember_image(bytes_for_memory, transform).await;
+    Ok(())
+}
+
+/// Apply GIF bytes selected through the client-side GIPHY/Tenor browser.
+/// Search credentials never cross this IPC boundary; only the selected media
+/// and editor transform reach Rust. The size cap bounds JSON IPC and decoding.
+#[tauri::command]
+async fn apply_tft_media_bytes(
+    app: AppHandle,
+    io: State<'_, Arc<DeviceIoGate>>,
+    upload: State<'_, Arc<TftUploadState>>,
+    memory: State<'_, Arc<TftMemory>>,
+    bytes: Vec<u8>,
+    transform: ImageTransform,
+) -> Result<(), AppError> {
+    validate_tft_source_bytes(&bytes)?;
+
+    let bytes_for_memory = bytes.clone();
+    let transform_for_decode = transform.clone();
+    let anim = tokio::task::spawn_blocking(move || {
+        tft_image::animation_from_bytes_with_transform(&bytes, &transform_for_decode)
+    })
+    .await
+    .map_err(|e| AppError::Protocol(format!("join decode: {e}")))?
+    .map_err(AppError::from)?;
+
+    upload_tft_with_progress(app, io, upload, anim).await?;
+    memory.remember_image(bytes_for_memory, transform).await;
     Ok(())
 }
 
@@ -1241,6 +1285,7 @@ pub fn run() {
         .manage(Arc::new(TftMemory::default()))
         .manage(Arc::new(NowPlayingTftState::default()))
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_dialog::init());
 
     builder
@@ -1287,6 +1332,7 @@ pub fn run() {
             list_tft_presets,
             apply_tft_preset,
             apply_tft_image,
+            apply_tft_media_bytes,
             cancel_tft_upload,
             tft_factory_default,
             tft_forget_memory,
@@ -1403,7 +1449,10 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_stale_handle_error, AppError, TftUploadState};
+    use super::{
+        is_stale_handle_error, validate_tft_source_bytes, AppError, TftUploadState,
+        MAX_TFT_SOURCE_BYTES,
+    };
 
     #[test]
     fn disconnect_errors_trigger_cached_handle_recovery() {
@@ -1424,5 +1473,12 @@ mod tests {
         state.finish();
         assert!(!state.cancel());
         assert!(state.begin().is_ok());
+    }
+
+    #[test]
+    fn remote_tft_media_enforces_ipc_size_bounds() {
+        assert!(validate_tft_source_bytes(&[]).is_err());
+        assert!(validate_tft_source_bytes(&[0]).is_ok());
+        assert!(validate_tft_source_bytes(&vec![0; MAX_TFT_SOURCE_BYTES + 1]).is_err());
     }
 }

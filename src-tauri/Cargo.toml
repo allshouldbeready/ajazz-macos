@@ -25,6 +25,7 @@ tauri-plugin-global-shortcut = "2.0"
 # avoiding the JSON-array-of-bytes IPC overhead of passing the file
 # buffer through the webview.
 tauri-plugin-dialog = "2.0"
+tauri-plugin-http = "2.6"
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }

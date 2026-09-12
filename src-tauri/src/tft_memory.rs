@@ -36,7 +36,7 @@
 //! — if testing reveals SET_KEY / SET_MACRO / SET_GAME_MODE / etc.
 //! also wipe the panel, hook them here.
 
-use ak820_protocol::commands::tft_image::{self, FitMode};
+use ak820_protocol::commands::tft_image::{self, ImageTransform};
 use ak820_protocol::commands::tft_presets;
 use ak820_protocol::Connection;
 use std::sync::Arc;
@@ -53,11 +53,14 @@ pub enum TftMemoryState {
     /// the catalogue can grow without breaking persistence later.
     Preset(String),
     /// Raw uploaded image bytes (PNG / JPEG / GIF) + the user's chosen
-    /// fit mode. Cached in memory so we don't have to seek back to disk
+    /// transform. Cached in memory so we don't have to seek back to disk
     /// to re-decode — files can be huge, but a single GIF is usually
     /// a few MB at most. Cleared on factory-default or explicit user
     /// reset; never persisted to disk.
-    Image { bytes: Vec<u8>, fit: FitMode },
+    Image {
+        bytes: Vec<u8>,
+        transform: ImageTransform,
+    },
 }
 
 #[derive(Default)]
@@ -68,8 +71,8 @@ impl TftMemory {
         *self.0.lock().await = Some(TftMemoryState::Preset(id));
     }
 
-    pub async fn remember_image(&self, bytes: Vec<u8>, fit: FitMode) {
-        *self.0.lock().await = Some(TftMemoryState::Image { bytes, fit });
+    pub async fn remember_image(&self, bytes: Vec<u8>, transform: ImageTransform) {
+        *self.0.lock().await = Some(TftMemoryState::Image { bytes, transform });
     }
 
     pub async fn forget(&self) {
@@ -98,8 +101,9 @@ impl TftMemory {
                         "stored TFT preset id `{id}` no longer in catalogue"
                     ))
                 })?,
-                TftMemoryState::Image { bytes, fit } => {
-                    tft_image::animation_from_bytes(&bytes, fit).map_err(AppError::from)?
+                TftMemoryState::Image { bytes, transform } => {
+                    tft_image::animation_from_bytes_with_transform(&bytes, &transform)
+                        .map_err(AppError::from)?
                 }
             };
             let tft = Connection::open_tft().map_err(AppError::from)?;

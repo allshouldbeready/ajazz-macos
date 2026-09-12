@@ -33,6 +33,7 @@ wireless use.
 - ANSI base and Fn-layer keymap editing with factory-default staging
 - Macro recording, editing, capacity checks, and assignment
 - TFT built-in selection, factory reset, PNG/JPEG upload, and animated GIF upload
+- In-app GIPHY/Tenor search with a 128 × 128 crop, resize, speed, and frame editor
 - Session-scoped confirmation before the app performs its first hardware write
 - CLI diagnostics backed by the same protocol library as the desktop app
 
@@ -42,6 +43,8 @@ The official controls and installer-derived effect catalogue are documented in
 [RGB modes](docs/RGB_MODES.md).
 How each page distinguishes device read-back from write-only remembered values
 is documented in [current-state handling](docs/CURRENT_STATE.md).
+Provider setup and media-safety limits are documented in the
+[online GIF browser guide](docs/GIF_BROWSER.md).
 
 ## Build
 
