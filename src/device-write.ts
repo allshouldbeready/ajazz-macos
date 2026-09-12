@@ -1,4 +1,5 @@
 import { invoke, type InvokeArgs } from "@tauri-apps/api/core";
+import { confirm } from "@tauri-apps/plugin-dialog";
 
 let writeSessionApproved = false;
 
@@ -13,9 +14,15 @@ export async function invokeDeviceWrite<T>(
   description: string,
 ): Promise<T> {
   if (!writeSessionApproved) {
-    const approved = window.confirm(
+    const approved = await confirm(
       `Allow AJAZZ macOS to modify the connected keyboard?\n\n${description}\n\n` +
         "The app will never access firmware-update or bootloader mode. This approval lasts until you reconnect or restart the app.",
+      {
+        title: "Confirm keyboard write",
+        kind: "warning",
+        okLabel: "Allow",
+        cancelLabel: "Cancel",
+      },
     );
     if (!approved) {
       throw new Error("Device write cancelled.");
