@@ -1,10 +1,20 @@
-# Attribution
+# Attribution and names
 
-AJAZZ macOS is based on the MIT-licensed
+AJAZZ macOS is derived from the MIT-licensed
 [`wsclx/ak820pro-modder`](https://github.com/wsclx/ak820pro-modder) project.
-The upstream source was imported as a single snapshot so this repository has
-an independent history. Its original copyright notice remains in `LICENSE`.
+The upstream source was imported as a single snapshot on 12 September 2026,
+after upstream commit `fe93c13972445f92b00b485875da2811173eb940`. This
+repository intentionally has independent, squashed history. The upstream
+copyright and MIT permission notice are preserved in `LICENSE`.
 
-The protocol research also builds on the projects credited in `README.md` and
-`docs/PROTOCOL.md`. AJAZZ and Epomaker are trademarks of their respective
-owners. This project is independent and is not endorsed by either company.
+Protocol behavior was independently documented for interoperability from
+observable USB traffic, the public AJAZZ web driver, and user-owned hardware.
+No AJAZZ Windows installer, extracted vendor code, firmware, packet capture,
+credential, or signing material is distributed in this repository.
+
+AJAZZ, Epomaker, GIPHY, Apple, macOS, Spotify, and other product names and
+marks belong to their respective owners. Their names are used only to identify
+compatibility or an optional integration. AJAZZ macOS is independent and is
+not sponsored, authorized, or endorsed by those owners.
+
+Third-party package information is recorded in `THIRD_PARTY_NOTICES.md`.

@@ -112,14 +112,22 @@ desktop and CLI surfaces are clients of that crate. See
 The AJAZZ Windows installer, extracted binaries, web-driver bundles, packet
 captures, device identifiers, credentials, and signing material are not part of
 this repository. Hardware writes are serialized, bounded, and limited to
-configuration commands. Read [SECURITY.md](SECURITY.md) before protocol work.
+configuration commands. This is experimental, unofficial software and can
+alter or lose onboard settings. Read the [disclaimer](DISCLAIMER.md),
+[security policy](SECURITY.md), and [privacy disclosure](PRIVACY.md) before use.
+
+There are no official public binary releases yet. The package is intentionally
+marked `private` in `package.json` to prevent accidental npm publication, and
+CI does not publish its unsigned build output. A binary release must include a
+complete dependency-license bundle and pass hardware acceptance testing.
 
 ## Attribution and license
 
 This repository began as a squashed import of the MIT-licensed
 [`wsclx/ak820pro-modder`](https://github.com/wsclx/ak820pro-modder). The
 original copyright remains in [LICENSE](LICENSE); additional project and
-protocol credits are recorded in [NOTICE.md](NOTICE.md) and
+protocol credits are recorded in [NOTICE.md](NOTICE.md),
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and
 [docs/PROTOCOL.md](docs/PROTOCOL.md).
 
 AJAZZ macOS is independent and is not endorsed by AJAZZ or Epomaker.

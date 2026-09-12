@@ -29,7 +29,7 @@ body:
     attributes:
       label: App version
       description: From the About dialog or sidebar footer.
-      placeholder: "0.5.0-beta"
+      placeholder: "0.7.0-beta"
     validations:
       required: true
 
@@ -82,19 +82,14 @@ body:
     id: layout
     attributes:
       label: Physical layout
-      description: |
-        `v0.5.0-beta` is built and tested against **ISO-DE only**. If you're
-        on a different variant, the Keymap view will show wrong legends —
-        that's a known limitation, not a bug. Other features (lighting,
-        system, per-key RGB, TFT) are layout-agnostic and should work
-        regardless.
+      description: Select the physical layout configured in the app.
       options:
-        - ISO-DE (German QWERTZ — fully supported)
-        - ANSI (US — known mislabelling in Keymap)
-        - ISO-UK (British — known mislabelling in Keymap)
-        - ISO-FR (French AZERTY — known mislabelling in Keymap)
-        - ISO-ES (Spanish — known mislabelling in Keymap)
-        - JIS (Japanese — known mislabelling in Keymap)
+        - ANSI (US — primary tested target)
+        - ISO-DE (German QWERTZ)
+        - ISO-UK (British)
+        - ISO-FR (French AZERTY)
+        - ISO-ES (Spanish)
+        - JIS (Japanese — not yet supported)
         - Other / not sure
     validations:
       required: true
