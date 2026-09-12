@@ -14,7 +14,7 @@ The proprietary installer and extracted files are intentionally not included.
 | Macros | Implemented | Bounds and codec tests | Pending ANSI wired device |
 | TFT built-in/default selection | Implemented | Command tests | Pending visible confirmation |
 | PNG/JPEG TFT upload | Implemented | Decode/fit/RGB565 tests | Pending visible confirmation |
-| Animated GIF TFT upload | Implemented; full-timeline sampling replaces first-N truncation | Decode, frame-budget, final-frame, and duration tests | GIF visibly rendered; corrected full-loop playback pending retry |
+| Animated GIF TFT upload | Implemented; full-timeline sampling replaces first-N truncation | Decode, frame-budget, final-frame, and duration tests | Corrected 30-frame transfer completed; visible full-loop playback pending confirmation |
 | TFT progress and cancellation | Implemented | State and cancellation tests | Pending interrupted upload test |
 
 Full parity must not be claimed until still-image and animated-GIF uploads are

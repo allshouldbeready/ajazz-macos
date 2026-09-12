@@ -89,6 +89,9 @@ Hardware verification on 2026-09-12 confirmed the control-before-data order:
 a 16-frame GIPHY animation completed all 129 reports (`1 + 8 × 16`) and the
 final `SAVE` without a transport error. Visual TFT confirmation is recorded
 separately because successful HID completion alone does not prove rendering.
+After full-timeline sampling and post-SAVE `FINISH` were added, a user-initiated
+30-frame GIPHY transfer also completed successfully. Physical full-loop and
+keyboard-menu confirmation remain separate acceptance evidence.
 
 On 2026-09-12, the exact 65-byte framing and full lighting transaction were
 accepted by the connected ANSI keyboard, and the requested static-green result
