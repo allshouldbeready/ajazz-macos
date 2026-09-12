@@ -6,7 +6,7 @@ The proprietary installer and extracted files are intentionally not included.
 | Feature family | Implementation | Automated verification | Hardware verification |
 |---|---|---|---|
 | Wired discovery and device information | Transport detection implemented; legacy configuration read-back unavailable | Rust tests and CLI probe | 9 collections enumerated; legacy control selected |
-| Battery | Online firmware read, supplied-driver 2.4 GHz receiver query, and read-only macOS Bluetooth status; wired legacy explicitly unavailable | Receiver request/response golden tests, macOS report parser tests, and bounds checks | Wired spoof timed out as expected; receiver and connected-Bluetooth percentages pending |
+| Battery | Online firmware read, supplied-driver 2.4 GHz receiver query, and read-only macOS Bluetooth status; wired legacy explicitly unavailable | Exact 33-byte receiver request/response golden tests, zero/unavailable handling, macOS report parser tests, and bounds checks | Corrected wired spoof timed out as expected; receiver and connected-Bluetooth percentages pending |
 | Bluetooth-only guidance | Implemented, including paired/connected/battery provenance | Parser tests and frontend build | Paired/disconnected state confirmed; connected mode pending |
 | Clock, sleep, and game settings | Clock implemented on both transports; remaining legacy mappings pending | Clock golden packets and encoder/parser tests | Legacy clock visibly confirmed correct on ANSI hardware |
 | 20 global RGB effects | Legacy and online writes implemented | Golden payload tests | Static-green legacy write visibly confirmed on ANSI hardware |

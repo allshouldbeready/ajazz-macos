@@ -26,6 +26,7 @@ const DEFAULT_TIMEOUT_MS: i32 = 500;
 const LEGACY_BATTERY_COMMAND: u8 = 0x20;
 const LEGACY_BATTERY_SUBCOMMAND: u8 = 0x01;
 const LEGACY_BATTERY_CHECKSUM_OFFSET: usize = 32;
+const LEGACY_BATTERY_REPORT_LEN: usize = 33;
 const LEGACY_BATTERY_TIMEOUT_MS: i32 = 750;
 
 fn remaining_timeout_ms(deadline: std::time::Instant, now: std::time::Instant) -> Option<i32> {
@@ -52,22 +53,17 @@ fn matching_response_payload(buf: &[u8], expected_cmd: u8) -> Result<Option<Vec<
     Ok(Some(buf[HEADER_LEN..].to_vec()))
 }
 
-fn legacy_battery_request(output_report_bytes: usize) -> Result<Vec<u8>> {
-    if output_report_bytes < LEGACY_BATTERY_CHECKSUM_OFFSET {
-        return Err(Error::UnexpectedResponse(format!(
-            "battery endpoint output report is only {output_report_bytes} bytes"
-        )));
-    }
-    // hidapi expects the unnumbered report ID as byte zero. The Windows driver
-    // places its checksum at byte 32 of that report and pads to the endpoint's
-    // declared output-report length.
-    let mut request = vec![0u8; output_report_bytes + 1];
+fn legacy_battery_request() -> Vec<u8> {
+    // hidapi expects the unnumbered report ID as byte zero. Although the
+    // Windows application allocates a 65-byte work buffer, its transport layer
+    // passes exactly 0x21 bytes to WriteFile: report ID + 32-byte payload.
+    let mut request = vec![0u8; LEGACY_BATTERY_REPORT_LEN];
     request[1] = LEGACY_BATTERY_COMMAND;
     request[2] = LEGACY_BATTERY_SUBCOMMAND;
     request[LEGACY_BATTERY_CHECKSUM_OFFSET] = request
         .iter()
         .fold(0u8, |sum, byte| sum.wrapping_add(*byte));
-    Ok(request)
+    request
 }
 
 fn parse_legacy_battery_response(response: &[u8]) -> Result<Option<u8>> {
@@ -80,6 +76,12 @@ fn parse_legacy_battery_response(response: &[u8]) -> Result<Option<u8>> {
         return Ok(None);
     }
     let level = payload[3];
+    // The supplied driver treats zero as "no reading" and leaves its battery
+    // control unchanged. Preserve that distinction instead of presenting an
+    // absent receiver value as an authoritative 0% charge.
+    if level == 0 {
+        return Ok(None);
+    }
     if level > 100 {
         return Err(Error::UnexpectedResponse(format!(
             "invalid battery percentage {level}"
@@ -88,12 +90,8 @@ fn parse_legacy_battery_response(response: &[u8]) -> Result<Option<u8>> {
     Ok(Some(level))
 }
 
-fn query_legacy_battery_device(
-    device: &HidDevice,
-    output_report_bytes: usize,
-    source: &'static str,
-) -> Result<BatteryStatus> {
-    let request = legacy_battery_request(output_report_bytes)?;
+fn query_legacy_battery_device(device: &HidDevice, source: &'static str) -> Result<BatteryStatus> {
+    let request = legacy_battery_request();
     device.write(&request)?;
 
     let deadline = std::time::Instant::now()
@@ -101,9 +99,12 @@ fn query_legacy_battery_device(
     let mut response = [0u8; 4096];
     loop {
         let Some(remaining) = remaining_timeout_ms(deadline, std::time::Instant::now()) else {
-            return Err(Error::UnexpectedResponse(
-                "timeout waiting for the legacy battery response".into(),
-            ));
+            let detail = if source == "wired-bypass" {
+                "wired endpoint did not answer the receiver-only battery query; changing the host mode does not emulate the 2.4 GHz radio bridge"
+            } else {
+                "timeout waiting for the 2.4 GHz receiver battery response"
+            };
+            return Err(Error::UnexpectedResponse(detail.into()));
         };
         let read = device.read_timeout(&mut response, remaining)?;
         if read == 0 {
@@ -139,11 +140,7 @@ pub fn query_receiver_battery() -> Result<BatteryStatus> {
         })?;
     let api = HidApi::new()?;
     let device = api.open_path(&std::ffi::CString::new(receiver.path.clone()).unwrap())?;
-    let mut descriptor = [0u8; 512];
-    let descriptor_len = device.get_report_descriptor(&mut descriptor)?;
-    let output_report_bytes = parse_max_output_report_size(&descriptor[..descriptor_len])
-        .ok_or_else(|| Error::UnexpectedResponse("receiver has no output report".into()))?;
-    query_legacy_battery_device(&device, output_report_bytes, "2.4g-receiver")
+    query_legacy_battery_device(&device, "2.4g-receiver")
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -439,13 +436,7 @@ impl Connection {
                 "wired battery bypass requires supplied-driver firmware",
             ));
         }
-        let mut descriptor = [0u8; 512];
-        let descriptor_len = self.device.get_report_descriptor(&mut descriptor)?;
-        let output_report_bytes = parse_max_output_report_size(&descriptor[..descriptor_len])
-            .ok_or_else(|| {
-                Error::UnexpectedResponse("control endpoint has no output report".into())
-            })?;
-        query_legacy_battery_device(&self.device, output_report_bytes, "wired-bypass")
+        query_legacy_battery_device(&self.device, "wired-bypass")
     }
 
     pub fn probe(&self) -> Result<ProbeReport> {
@@ -1263,11 +1254,11 @@ mod device_tests {
 
     #[test]
     fn legacy_battery_request_matches_supplied_driver() {
-        let request = legacy_battery_request(64).unwrap();
-        assert_eq!(request.len(), 65);
+        let request = legacy_battery_request();
+        assert_eq!(request.len(), 33);
         assert_eq!(&request[..4], &[0, 0x20, 0x01, 0]);
         assert_eq!(request[32], 0x21);
-        assert!(request[33..].iter().all(|byte| *byte == 0));
+        assert!(request[3..32].iter().all(|byte| *byte == 0));
     }
 
     #[test]
@@ -1284,6 +1275,10 @@ mod device_tests {
 
     #[test]
     fn legacy_battery_response_rejects_invalid_values() {
+        assert_eq!(
+            parse_legacy_battery_response(&[0x20, 0x01, 0, 0]).unwrap(),
+            None
+        );
         assert!(parse_legacy_battery_response(&[0x20, 0x01, 0, 101]).is_err());
         assert_eq!(
             parse_legacy_battery_response(&[0x04, 0x20, 0x01, 50]).unwrap(),

@@ -33,6 +33,30 @@ Planned for 0.8.x
 - Browser-tab media support in Now-Playing (currently only Music.app + Spotify desktop) — **declined for now** on privacy grounds; revisit if a non-invasive surface emerges.
 - JIS physical layout once hardware is available for verification.
 
+## [0.7.2-beta] — 2026-09-13
+
+### Fixed
+
+- Corrected the supplied-driver 2.4 GHz battery request from a descriptor-sized
+  65-byte write to the exact 33-byte wire report used by its `WriteFile`
+  transport. The 65-byte allocation visible in the caller is only a work
+  buffer; the driver transmits report ID plus a 32-byte payload.
+- Treat a returned battery byte of zero as “no reading,” matching the supplied
+  driver, rather than presenting it as a confirmed zero-percent charge.
+- Wired diagnostic timeouts now explain that spoofing the host connection mode
+  does not emulate the receiver's radio bridge.
+
+### Hardware findings
+
+- The corrected exact 33-byte request was sent once to the connected wired ANSI
+  `PID 0x8009`, `bcdDevice 0x0114` interface and still produced no response.
+- Static analysis found only one battery-query constructor in the supplied
+  executable. It is gated to connection mode `2`, which the bundled
+  configuration maps exclusively to the physical `PID 0xFDFD`, `MI_03`
+  receiver. The wired configuration endpoint instead advertises 64-byte
+  reports, confirming that the host-side spoof reaches the polling code but
+  cannot substitute for the receiver transport.
+
 ## [0.7.1-beta] — 2026-09-13
 
 ### Added

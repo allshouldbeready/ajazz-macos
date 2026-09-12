@@ -4,7 +4,7 @@
  * — keep them in lockstep.
  */
 
-export const APP_VERSION = "0.7.1-beta";
+export const APP_VERSION = "0.7.2-beta";
 export const APP_AUTHOR = "allshouldbeready";
 export const APP_HOMEPAGE = "https://github.com/allshouldbeready/ak820-pro-macos";
 

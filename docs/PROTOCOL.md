@@ -134,16 +134,25 @@ the app presents vendor defaults and labels the operation as write-only.
 ### Supplied-driver wireless battery query (`0x20 0x01`)
 
 The supplied Windows application polls battery only when its host-side
-connection mode is the 2.4 GHz receiver (`PID 0xFDFD`). It writes one
-unnumbered output report beginning `00 20 01 00`; byte 32 is the wrapping sum
-of the request bytes (`0x21`). A valid input response begins `20 01 00`, with
-battery percentage at byte 3. The protocol does not expose charging state.
+connection mode equals `2`. Its bundled `config.xml` maps that mode exclusively
+to the physical 2.4 GHz receiver (`PID 0xFDFD`, interface `MI_03`). It allocates
+a 65-byte work buffer, but the disassembled transport passes exactly `0x21`
+(33) bytes to `WriteFile`: report ID `0`, 31 data bytes, and the wrapping
+checksum at byte 32. The request begins `00 20 01 00`. A valid input response
+begins `20 01 00`, with battery percentage at byte 3. Zero means "no reading"
+to the supplied driver; `1..=100` is valid. Charging state is not exposed.
 
-The mode check can be bypassed, but that does not make the wired controller
-route the receiver command. On the connected wired ANSI `bcdDevice 0x0114`, a
-complete 65-byte request was accepted by macOS and timed out with no response.
-The app only queries this protocol automatically when the actual receiver PID
-is present, and never converts a timeout into a battery value.
+The host-side mode check can be bypassed, but that changes neither the USB
+device nor its firmware transport. The wired `PID 0x8009` configuration
+endpoint advertises 64-byte input/output/feature reports; the receiver is a
+different USB device and supplies the radio bridge that obtains wireless
+telemetry. None of the wired device's nine HID collections declares the
+standard HID Battery System usage or publishes a macOS battery property. On
+the connected wired ANSI `bcdDevice 0x0114`, both the earlier
+descriptor-sized attempt and the corrected exact 33-byte wire report timed out
+with no input response. The supplied binary contains no alternate wired battery
+query. The app therefore sends this request automatically only to the real
+receiver PID and never converts zero or a timeout into a battery percentage.
 
 ## Online-driver transport (confirmed against AJAZZ firmware 1.07)
 

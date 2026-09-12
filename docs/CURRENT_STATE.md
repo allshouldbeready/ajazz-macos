@@ -26,8 +26,9 @@ such as automations load from their own local data store.
 Legacy battery percentage is a separate exception: the supplied driver exposes
 it through the physical 2.4 GHz receiver, not through the wired configuration
 endpoint. The app shows it as receiver-sourced and leaves charging status
-unknown. A wired query timeout remains “unavailable”; it is never displayed as
-zero percent.
+unknown. Spoofing the driver's host-side connection-mode check does not emulate
+the receiver's radio bridge. A zero response or wired query timeout remains
+“unavailable”; neither is displayed as zero percent.
 
 Connectivity also asks macOS for the paired AK820 Bluetooth identity. This is
 an operating-system observation, not a vendor-protocol read: the app shows a
