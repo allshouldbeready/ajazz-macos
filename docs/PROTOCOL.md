@@ -66,7 +66,9 @@ interface 2 / `0xFF68` for 4096-byte image reports. Its sequence is:
    little-endian 4096-byte report count at bytes 8–9;
 3. write every 4096-byte report on `0xFF68`, waiting up to 300 ms for the
    optional input acknowledgement after each report; and
-4. feature exchange `SAVE` (`04 02`).
+4. feature exchange `SAVE` (`04 02`); and
+5. send `FINISH` (`04 F0`) without waiting for a response, closing the device
+   transaction so the keyboard's own TFT menu remains responsive.
 
 The animation body begins with a complete 4096-byte metadata report filled
 with `FF`: byte 0 is the frame count and bytes `1..=N` hold each frame delay in

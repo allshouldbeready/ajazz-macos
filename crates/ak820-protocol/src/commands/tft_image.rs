@@ -102,7 +102,7 @@ const MAX_INTERMEDIATE_DIMENSION: u32 = 4096;
 
 /// Decode an image byte buffer and turn it into a [`TftAnimation`].
 /// Auto-detects format from the byte signature (PNG / JPEG / GIF). For
-/// GIFs, every frame is decoded, fitted, and quantised in turn. For
+/// GIFs, the full timeline is sampled, fitted, and quantised. For
 /// stills, the result is a single-frame animation.
 pub fn animation_from_bytes(bytes: &[u8], fit: FitMode) -> Result<TftAnimation> {
     animation_from_bytes_with_transform(
@@ -147,38 +147,93 @@ fn is_gif(bytes: &[u8]) -> bool {
 }
 
 fn animation_from_gif(bytes: &[u8], transform: &ImageTransform) -> Result<TftAnimation> {
-    let cursor = std::io::Cursor::new(bytes);
-    let mut decoder = image::codecs::gif::GifDecoder::new(cursor)
-        .map_err(|e| Error::UnexpectedResponse(format!("gif decode: {e}")))?;
-    decoder
-        .set_limits(decode_limits())
-        .map_err(|e| Error::UnexpectedResponse(format!("gif limits: {e}")))?;
+    let delays = gif_frame_delays(bytes, transform.speed_percent)?;
+    let frame_limit = transform.max_frames.clamp(1, MAX_FRAMES_FOR_GIF);
+    let selected = sampled_frame_indices(delays.len(), frame_limit);
+    let selected_delays = sampled_frame_delays(&delays, &selected);
+
+    if delays.len() > frame_limit {
+        tracing::info!(
+            source_frames = delays.len(),
+            output_frames = selected.len(),
+            "sampling GIF across its complete timeline"
+        );
+    }
+
+    let decoder = gif_decoder(bytes)?;
     let mut frames = Vec::new();
+    let mut selected_iter = selected.into_iter().zip(selected_delays).peekable();
     for (i, raw) in decoder.into_frames().enumerate() {
         let raw = raw.map_err(|e| Error::UnexpectedResponse(format!("gif frame {i}: {e}")))?;
-        let delay_ms = raw.delay().numer_denom_ms();
-        // `delay()` is the per-frame display duration as a rational
-        // (numer, denom) in milliseconds. Round to nearest whole ms,
-        // then clamp to the protocol's representable range.
-        let delay_ms = (delay_ms.0 as u64).saturating_div(delay_ms.1.max(1) as u64) as u16;
-        let speed = transform.speed_percent.clamp(25, 400) as u32;
-        let delay_ms =
-            ((delay_ms as u32 * 100) / speed).clamp(MIN_FRAME_DELAY_MS as u32, 1275) as u16;
-        let img = image::DynamicImage::ImageRgba8(raw.into_buffer());
-        frames.push(transform_and_quantise(&img, transform, delay_ms));
-        let frame_limit = transform.max_frames.clamp(1, MAX_FRAMES_FOR_GIF);
-        if frames.len() >= frame_limit {
-            tracing::warn!(
-                limit = frame_limit,
-                "GIF exceeds device frame budget; truncating"
-            );
-            break;
+        if selected_iter.peek().is_some_and(|(index, _)| *index == i) {
+            let (_, delay_ms) = selected_iter.next().expect("peeked selected frame");
+            let img = image::DynamicImage::ImageRgba8(raw.into_buffer());
+            frames.push(transform_and_quantise(&img, transform, delay_ms));
         }
     }
     if frames.is_empty() {
         return Err(Error::UnexpectedResponse("gif contained no frames".into()));
     }
     Ok(TftAnimation { frames })
+}
+
+fn gif_decoder(bytes: &[u8]) -> Result<image::codecs::gif::GifDecoder<std::io::Cursor<&[u8]>>> {
+    let cursor = std::io::Cursor::new(bytes);
+    let mut decoder = image::codecs::gif::GifDecoder::new(cursor)
+        .map_err(|e| Error::UnexpectedResponse(format!("gif decode: {e}")))?;
+    decoder
+        .set_limits(decode_limits())
+        .map_err(|e| Error::UnexpectedResponse(format!("gif limits: {e}")))?;
+    Ok(decoder)
+}
+
+fn gif_frame_delays(bytes: &[u8], speed_percent: u16) -> Result<Vec<u16>> {
+    let decoder = gif_decoder(bytes)?;
+    let speed = speed_percent.clamp(25, 400) as u32;
+    decoder
+        .into_frames()
+        .enumerate()
+        .map(|(i, raw)| {
+            let raw = raw.map_err(|e| Error::UnexpectedResponse(format!("gif frame {i}: {e}")))?;
+            let (numer, denom) = raw.delay().numer_denom_ms();
+            let delay_ms = (numer as u64).saturating_div(denom.max(1) as u64) as u32;
+            Ok(((delay_ms * 100) / speed).clamp(MIN_FRAME_DELAY_MS as u32, 510) as u16)
+        })
+        .collect()
+}
+
+/// Pick representative source frames from the beginning through the final
+/// frame. This preserves the whole motion arc when a GIF exceeds the device
+/// budget instead of silently uploading only its opening segment.
+fn sampled_frame_indices(frame_count: usize, frame_limit: usize) -> Vec<usize> {
+    if frame_count <= frame_limit {
+        return (0..frame_count).collect();
+    }
+    if frame_limit == 1 {
+        return vec![0];
+    }
+    let last = frame_count - 1;
+    let denominator = frame_limit - 1;
+    (0..frame_limit)
+        .map(|i| (i * last + denominator / 2) / denominator)
+        .collect()
+}
+
+/// Carry the duration of skipped frames into the preceding representative so
+/// frame reduction does not make the animation stop early or race through.
+fn sampled_frame_delays(delays: &[u16], selected: &[usize]) -> Vec<u16> {
+    selected
+        .iter()
+        .enumerate()
+        .map(|(i, start)| {
+            let end = selected.get(i + 1).copied().unwrap_or(delays.len());
+            delays[*start..end]
+                .iter()
+                .map(|delay| u32::from(*delay))
+                .sum::<u32>()
+                .min(510) as u16
+        })
+        .collect()
 }
 
 fn decode_limits() -> image::Limits {
@@ -270,6 +325,24 @@ fn parse_background(value: &str) -> (u8, u8, u8) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn animated_gif(frame_count: usize, delay_ms: u32) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        {
+            let mut encoder = image::codecs::gif::GifEncoder::new(&mut bytes);
+            let frames = (0..frame_count).map(|index| {
+                let red = (index as u8).saturating_mul(6);
+                image::Frame::from_parts(
+                    image::RgbaImage::from_pixel(1, 1, image::Rgba([red, 0, 0, 255])),
+                    0,
+                    0,
+                    image::Delay::from_numer_denom_ms(delay_ms, 1),
+                )
+            });
+            encoder.encode_frames(frames).unwrap();
+        }
+        bytes
+    }
 
     /// Construct a 4 × 4 PNG with a known colour pattern, encode it,
     /// then round-trip through `animation_from_bytes`. Mostly a sanity
@@ -363,5 +436,31 @@ mod tests {
         let dimensions = scaled_dimensions(8192, 1, &ImageTransform::default());
         assert!(dimensions.0 <= MAX_INTERMEDIATE_DIMENSION);
         assert!(dimensions.1 <= MAX_INTERMEDIATE_DIMENSION);
+    }
+
+    #[test]
+    fn oversized_gif_samples_the_complete_timeline() {
+        let bytes = animated_gif(40, 40);
+        let transform = ImageTransform {
+            max_frames: 5,
+            ..ImageTransform::default()
+        };
+        let anim = animation_from_bytes_with_transform(&bytes, &transform).unwrap();
+
+        assert_eq!(anim.frames.len(), 5);
+        assert_eq!(
+            anim.frames.iter().map(|frame| frame.delay_ms).sum::<u16>(),
+            1600
+        );
+        assert_eq!(
+            &anim.frames.last().unwrap().pixels[..2],
+            &super::super::tft::rgb888_to_rgb565(234, 0, 0).to_le_bytes()
+        );
+    }
+
+    #[test]
+    fn sampling_indices_include_first_and_last_frame() {
+        assert_eq!(sampled_frame_indices(40, 5), vec![0, 10, 20, 29, 39]);
+        assert_eq!(sampled_frame_indices(3, 5), vec![0, 1, 2]);
     }
 }

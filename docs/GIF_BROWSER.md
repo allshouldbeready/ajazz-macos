@@ -28,7 +28,8 @@ Selecting a result opens a live 128 × 128 preview. The editor supports:
 - horizontal and vertical crop anchoring;
 - letterbox/background color;
 - 25–400% playback-speed conversion; and
-- a 1–30 frame limit.
+- a 1–30 frame budget. Longer GIFs are sampled across their complete timeline,
+  including the final frame, rather than truncating the animation's ending.
 
 The animated browser preview retains the provider's original playback speed.
 Cropping, scaling, and background placement match the Rust conversion model;

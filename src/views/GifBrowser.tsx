@@ -266,7 +266,7 @@ export function GifBrowser({ busy, onApply }: Props) {
               onChange={(value) => updateTransform("position_y", value)} />
             <EditorRange label="Playback speed" value={transform.speed_percent} min={25} max={400} suffix="%"
               onChange={(value) => updateTransform("speed_percent", value)} />
-            <EditorRange label="Frame limit" value={transform.max_frames} min={1} max={30}
+            <EditorRange label="Frame budget" value={transform.max_frames} min={1} max={30}
               onChange={(value) => updateTransform("max_frames", value)} />
             <label className="flex items-center justify-between gap-3 text-xs text-fg-2">
               <span>Letterbox color</span>
@@ -293,7 +293,7 @@ export function GifBrowser({ busy, onApply }: Props) {
             </Button>
           </div>
           <p className="mt-2 text-[11px] leading-relaxed text-fg-3">
-            The preview animates at the provider's original speed. Speed and frame-limit changes are applied during conversion.
+            Crop and sizing match the TFT output. If a GIF exceeds the frame budget, frames are sampled across its full timeline instead of cutting off the ending.
           </p>
         </div>
       </div>

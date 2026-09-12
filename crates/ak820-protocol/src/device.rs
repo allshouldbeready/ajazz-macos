@@ -919,6 +919,12 @@ impl Connection {
             legacy_pause();
             legacy_feature_exchange(control, &save_payload())
                 .map_err(|error| tft_stage_error("SAVE", error))?;
+            // Close the transaction after SAVE. Without this, the image can
+            // render while the keyboard's own TFT menu remains stuck until a
+            // power cycle. No response is expected for FINISH.
+            legacy_pause();
+            legacy_feature_send(control, &finish_payload())
+                .map_err(|error| tft_stage_error("FINISH", error))?;
             Ok(())
         })();
 
