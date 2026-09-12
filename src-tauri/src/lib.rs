@@ -1069,11 +1069,22 @@ fn list_tft_presets() -> Vec<TftPresetInfo> {
 async fn upload_tft_with_progress(
     app: AppHandle,
     io: State<'_, Arc<DeviceIoGate>>,
+    state: State<'_, Arc<ConnState>>,
     upload: State<'_, Arc<TftUploadState>>,
     anim: ak820_protocol::commands::tft::TftAnimation,
 ) -> Result<(), AppError> {
     let _gate = io.0.lock().await;
     upload.begin()?;
+
+    // Supplied-driver firmware needs 0xFF13 for TFT transaction control.
+    // Release the normal cached 0xFF13 handle before opening the dedicated
+    // TFT data/control pair: macOS times out SetReport on a second live handle.
+    state
+        .with(|slot| {
+            slot.take();
+            Ok(())
+        })
+        .await?;
 
     let upload_state = upload.inner().clone();
     let worker_state = upload_state.clone();
@@ -1147,6 +1158,7 @@ async fn tft_factory_default(
 async fn apply_tft_image(
     app: AppHandle,
     io: State<'_, Arc<DeviceIoGate>>,
+    state: State<'_, Arc<ConnState>>,
     upload: State<'_, Arc<TftUploadState>>,
     memory: State<'_, Arc<TftMemory>>,
     path: String,
@@ -1173,7 +1185,7 @@ async fn apply_tft_image(
     .map_err(|e| AppError::Protocol(format!("join decode: {e}")))?
     .map_err(AppError::from)?;
 
-    upload_tft_with_progress(app, io, upload, anim).await?;
+    upload_tft_with_progress(app, io, state, upload, anim).await?;
     memory.remember_image(bytes_for_memory, transform).await;
     Ok(())
 }
@@ -1185,6 +1197,7 @@ async fn apply_tft_image(
 async fn apply_tft_media_bytes(
     app: AppHandle,
     io: State<'_, Arc<DeviceIoGate>>,
+    state: State<'_, Arc<ConnState>>,
     upload: State<'_, Arc<TftUploadState>>,
     memory: State<'_, Arc<TftMemory>>,
     bytes: Vec<u8>,
@@ -1201,7 +1214,7 @@ async fn apply_tft_media_bytes(
     .map_err(|e| AppError::Protocol(format!("join decode: {e}")))?
     .map_err(AppError::from)?;
 
-    upload_tft_with_progress(app, io, upload, anim).await?;
+    upload_tft_with_progress(app, io, state, upload, anim).await?;
     memory.remember_image(bytes_for_memory, transform).await;
     Ok(())
 }
@@ -1210,6 +1223,7 @@ async fn apply_tft_media_bytes(
 async fn apply_tft_preset(
     app: AppHandle,
     io: State<'_, Arc<DeviceIoGate>>,
+    state: State<'_, Arc<ConnState>>,
     upload: State<'_, Arc<TftUploadState>>,
     memory: State<'_, Arc<TftMemory>>,
     id: String,
@@ -1223,7 +1237,7 @@ async fn apply_tft_preset(
         .map_err(|e| AppError::Protocol(format!("join build: {e}")))?
         .ok_or_else(|| AppError::Protocol(format!("unknown TFT preset id: {id}")))?;
 
-    upload_tft_with_progress(app, io, upload, anim).await?;
+    upload_tft_with_progress(app, io, state, upload, anim).await?;
     memory.remember_preset(id).await;
     Ok(())
 }

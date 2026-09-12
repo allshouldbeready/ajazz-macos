@@ -75,6 +75,11 @@ with `FF`: byte 0 is the frame count and bytes `1..=N` hold each frame delay in
 reports. This layout and sequence were recovered from the supplied executable;
 the independent gohv implementation corroborates the single-frame form.
 
+On macOS, the application's ordinary cached `0xFF13` control handle must be
+closed before opening the dedicated TFT data/control pair. Keeping two live
+handles to that collection caused `IOHIDDeviceSetReport` to time out before the
+first image block was sent.
+
 On 2026-09-12, the exact 65-byte framing and full lighting transaction were
 accepted by the connected ANSI keyboard, and the requested static-green result
 was visibly confirmed. The legacy clock transaction was also visibly confirmed
