@@ -42,9 +42,10 @@ pub const FRAME_BYTES: usize = PIXELS_PER_FRAME * BYTES_PER_PIXEL;
 /// Size of the frame-delay header that prefixes the pixel stream.
 pub const FRAME_HEADER_BYTES: usize = 256;
 
-/// Supplied-driver firmware reserves one complete 4096-byte report for frame
-/// timing metadata before the RGB565 frame stream.
-pub const LEGACY_FRAME_HEADER_BYTES: usize = 4096;
+/// Supplied-driver firmware reserves a 256-byte timing header before the
+/// RGB565 frame stream (`gif_headlength="256"` in the supplied layout).
+/// The complete payload is then padded to a 4096-byte report boundary.
+pub const LEGACY_FRAME_HEADER_BYTES: usize = 256;
 pub const LEGACY_REPORT_BYTES: usize = 4096;
 
 /// Hard cap on frames per upload: header field is one byte and slot 0 is the
@@ -182,7 +183,8 @@ impl TftAnimation {
 
     /// Encode the animation layout used by the supplied Windows application.
     /// Byte zero is the frame count, bytes 1..N are delays in 2-ms units, the
-    /// rest of the first 4 KiB report is 0xFF, then RGB565 frames follow.
+    /// rest of the 256-byte header is 0xFF, then RGB565 frames follow. The
+    /// final report is padded with 0xFF to a 4096-byte boundary.
     pub fn encode_legacy(&self) -> Result<Vec<u8>> {
         self.validate_frames()?;
         let mut out = vec![0xFF; LEGACY_FRAME_HEADER_BYTES];
@@ -193,6 +195,8 @@ impl TftAnimation {
         for frame in &self.frames {
             out.extend_from_slice(&frame.pixels);
         }
+        let padded_len = out.len().div_ceil(LEGACY_REPORT_BYTES) * LEGACY_REPORT_BYTES;
+        out.resize(padded_len, 0xFF);
         debug_assert_eq!(out.len() % LEGACY_REPORT_BYTES, 0);
         Ok(out)
     }
@@ -305,8 +309,7 @@ mod tests {
         ];
         let buf = TftAnimation { frames }.encode_legacy().expect("encode");
 
-        assert_eq!(buf.len(), LEGACY_FRAME_HEADER_BYTES + 2 * FRAME_BYTES);
-        assert_eq!(buf.len() / LEGACY_REPORT_BYTES, 17);
+        assert_eq!(buf.len(), 17 * LEGACY_REPORT_BYTES);
         assert_eq!(&buf[..4], &[2, 50, 255, 0xFF]);
         assert!(buf[3..LEGACY_FRAME_HEADER_BYTES]
             .iter()
@@ -320,6 +323,9 @@ mod tests {
                 ..LEGACY_FRAME_HEADER_BYTES + FRAME_BYTES + 2],
             &[0xE0, 0x07]
         );
+        assert!(buf[LEGACY_FRAME_HEADER_BYTES + 2 * FRAME_BYTES..]
+            .iter()
+            .all(|byte| *byte == 0xFF));
     }
 
     #[test]

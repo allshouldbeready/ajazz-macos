@@ -70,12 +70,14 @@ interface 2 / `0xFF68` for 4096-byte image reports. Its sequence is:
 5. send `FINISH` (`04 F0`) without waiting for a response, closing the device
    transaction so the keyboard's own TFT menu remains responsive.
 
-The animation body begins with a complete 4096-byte metadata report filled
-with `FF`: byte 0 is the frame count and bytes `1..=N` hold each frame delay in
-2-ms units, clamped to `1..=255`. RGB565-LE frames follow consecutively at
-32768 bytes per frame. Therefore an N-frame transfer is exactly `1 + 8N`
-reports. This layout and sequence were recovered from the supplied executable;
-the independent gohv implementation corroborates the single-frame form.
+The animation body begins with a **256-byte** metadata header filled with `FF`:
+byte 0 is the frame count and bytes `1..=N` hold each frame delay in 2-ms units,
+clamped to `1..=255`. RGB565-LE frames immediately follow at 32768 bytes per
+frame, and the tail is padded with `FF` to a 4096-byte report boundary.
+Therefore an N-frame transfer is exactly `1 + 8N` reports. The supplied
+installer declares `gif_headlength="256"`; disassembly confirms image data is
+written at that configured offset. Treating the allocation's extra 4096 bytes
+as the header caused 15 white rows to precede every image on hardware.
 
 On macOS, the application's ordinary cached `0xFF13` control handle must be
 closed before opening the dedicated TFT data/control pair. Keeping two live
@@ -92,6 +94,9 @@ separately because successful HID completion alone does not prove rendering.
 After full-timeline sampling and post-SAVE `FINISH` were added, a user-initiated
 30-frame GIPHY transfer also completed successfully. Physical full-loop and
 keyboard-menu confirmation remain separate acceptance evidence.
+The subsequent Quadrants photograph identified the remaining spatial bug: a
+15-row white band preceded the intended framebuffer because the encoder used a
+4096-byte header instead of the installer's configured 256-byte header.
 
 On 2026-09-12, the exact 65-byte framing and full lighting transaction were
 accepted by the connected ANSI keyboard, and the requested static-green result
