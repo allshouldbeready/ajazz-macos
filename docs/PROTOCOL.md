@@ -78,7 +78,10 @@ the independent gohv implementation corroborates the single-frame form.
 On macOS, the application's ordinary cached `0xFF13` control handle must be
 closed before opening the dedicated TFT data/control pair. Keeping two live
 handles to that collection caused `IOHIDDeviceSetReport` to time out before the
-first image block was sent.
+first image block was sent. The implementation opens control before data and,
+after any failed upload, closes both handles and sends a best-effort `FINISH`
+through a newly opened control handle so recovery should not require a power
+cycle.
 
 On 2026-09-12, the exact 65-byte framing and full lighting transaction were
 accepted by the connected ANSI keyboard, and the requested static-green result

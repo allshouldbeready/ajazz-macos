@@ -722,8 +722,6 @@ impl Connection {
                 interface: -1,
             })?;
         let api = HidApi::new()?;
-        let device = api.open_path(&std::ffi::CString::new(pick.path.clone()).unwrap())?;
-        device.set_blocking_mode(true)?;
         let legacy_control = if legacy {
             let control = candidates
                 .iter()
@@ -738,6 +736,11 @@ impl Connection {
         } else {
             None
         };
+        // On macOS, acquire the 0xFF13 transaction endpoint before 0xFF68.
+        // Opening them in the opposite order can make the first SetReport on
+        // the control collection time out even though each endpoint opens.
+        let device = api.open_path(&std::ffi::CString::new(pick.path.clone()).unwrap())?;
+        device.set_blocking_mode(true)?;
         info!(
             path = %pick.path,
             interface = pick.interface,
@@ -755,6 +758,26 @@ impl Connection {
                 TransportKind::OnlineOutput
             },
         })
+    }
+
+    /// Best-effort recovery for a supplied-driver TFT transaction after the
+    /// data handle has been closed. This opens only 0xFF13 and sends FINISH so
+    /// a failed image report cannot leave the keyboard UI/TFT state machine
+    /// wedged until a physical power cycle.
+    pub fn recover_legacy_tft_transaction() -> Result<()> {
+        let candidates = enumerate()?;
+        let control = candidates
+            .iter()
+            .find(|candidate| candidate.usage_page == 0xFF13)
+            .ok_or(Error::DeviceNotFound {
+                vid: VENDOR_ID,
+                interface: CONTROL_INTERFACE,
+            })?;
+        let api = HidApi::new()?;
+        let device = api.open_path(&std::ffi::CString::new(control.path.clone()).unwrap())?;
+        device.set_blocking_mode(true)?;
+        legacy_feature_send(&device, &finish_payload())?;
+        Ok(())
     }
 
     /// Upload a TFT animation as a single chunked transaction. Re-uses our
@@ -871,9 +894,11 @@ impl Connection {
         );
 
         let result = (|| {
-            legacy_feature_exchange(control, &start_payload())?;
+            legacy_feature_exchange(control, &start_payload())
+                .map_err(|error| tft_stage_error("START", error))?;
             legacy_pause();
-            legacy_feature_exchange(control, &tft_image_preamble(USER_IMAGE_SLOT, chunk_count))?;
+            legacy_feature_exchange(control, &tft_image_preamble(USER_IMAGE_SLOT, chunk_count))
+                .map_err(|error| tft_stage_error("image preamble", error))?;
             legacy_pause();
 
             progress(0, total_chunks)?;
@@ -882,7 +907,9 @@ impl Connection {
             for (index, chunk) in payload.chunks_exact(LEGACY_REPORT_BYTES).enumerate() {
                 report[0] = 0;
                 report[1..].copy_from_slice(chunk);
-                self.device.write(&report)?;
+                self.device
+                    .write(&report)
+                    .map_err(|error| tft_stage_error("image report", error.into()))?;
                 // The supplied application waits up to 300 ms for an input
                 // report after each 4 KiB write but does not reject a timeout.
                 let _ = self.device.read_timeout(&mut response, ACK_TIMEOUT_MS);
@@ -890,7 +917,8 @@ impl Connection {
             }
 
             legacy_pause();
-            legacy_feature_exchange(control, &save_payload())?;
+            legacy_feature_exchange(control, &save_payload())
+                .map_err(|error| tft_stage_error("SAVE", error))?;
             Ok(())
         })();
 
@@ -1013,6 +1041,10 @@ impl Connection {
         }
         result
     }
+}
+
+fn tft_stage_error(stage: &str, error: Error) -> Error {
+    Error::UnexpectedResponse(format!("legacy TFT {stage} failed: {error}"))
 }
 
 fn legacy_pause() {

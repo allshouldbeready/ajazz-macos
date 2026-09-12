@@ -1090,7 +1090,7 @@ async fn upload_tft_with_progress(
     let worker_state = upload_state.clone();
     let worker_result = tokio::task::spawn_blocking(move || -> Result<(), AppError> {
         let tft = Connection::open_tft().map_err(AppError::from)?;
-        tft.upload_tft_animation_with_progress(&anim, |completed, total| {
+        let result = tft.upload_tft_animation_with_progress(&anim, |completed, total| {
             if completed < total && worker_state.cancelled.load(Ordering::Acquire) {
                 return Err(ak820_protocol::Error::Cancelled);
             }
@@ -1108,8 +1108,16 @@ async fn upload_tft_with_progress(
                 },
             );
             Ok(())
-        })
-        .map_err(AppError::from)
+        });
+        drop(tft);
+
+        if result.is_err() {
+            // The macOS HID backend may leave the TFT transaction active when
+            // an output report times out. Re-open only the control collection
+            // after dropping the data handle and explicitly send FINISH.
+            let _ = Connection::recover_legacy_tft_transaction();
+        }
+        result.map_err(AppError::from)
     })
     .await;
 
