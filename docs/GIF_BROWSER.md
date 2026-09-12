@@ -34,9 +34,10 @@ Selecting a result opens a live 128 × 128 preview. The editor supports:
 
 The editor warns when the budget exceeds 30 frames because a 140-frame RGB565
 transfer is approximately 4.4 MiB (1,121 HID reports) and can take several
-minutes on slower firmware. The legacy uploader does not pause for absent
-per-report acknowledgements, and UI progress events are limited to percentage
-changes. Progress, cancellation, failure recovery, and explicit hardware-write
+minutes. The connected legacy firmware requires per-report pacing even when an
+acknowledgement is absent; removing that wait made its loader stop at 71%.
+Frontend progress events are limited to percentage changes, while cancellation
+is checked after every report. Failure recovery and explicit hardware-write
 confirmation apply at every budget.
 
 The animated browser preview retains the provider's original playback speed.

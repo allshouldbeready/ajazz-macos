@@ -64,9 +64,8 @@ interface 2 / `0xFF68` for 4096-byte image reports. Its sequence is:
 1. feature exchange `START` (`04 18`);
 2. feature exchange `IMAGE` (`04 72`), with user slot `2` at byte 2 and the
    little-endian 4096-byte report count at bytes 8–9;
-3. write every 4096-byte report on `0xFF68`, non-blockingly draining any
-   optional input acknowledgement while relying on synchronous HID writes for
-   USB backpressure; and
+3. write every 4096-byte report on `0xFF68`, waiting up to 300 ms for the
+   optional input acknowledgement after each report; and
 4. feature exchange `SAVE` (`04 02`); and
 5. send `FINISH` (`04 F0`) without waiting for a response, closing the device
    transaction so the keyboard's own TFT menu remains responsive.
@@ -100,6 +99,11 @@ TFT. The browser editor permits up to the supplied driver's declared
 The subsequent Quadrants photograph identified the remaining spatial bug: a
 15-row white band preceded the intended framebuffer because the encoder used a
 4096-byte header instead of the installer's configured 256-byte header.
+
+The per-report wait is required pacing, not just response validation. A
+non-blocking-write experiment appeared successful to macOS and reached SAVE,
+but the keyboard's own loader stopped at 71%, proving that synchronous host
+writes alone do not provide sufficient device-side backpressure.
 
 On 2026-09-12, the exact 65-byte framing and full lighting transaction were
 accepted by the connected ANSI keyboard, and the requested static-green result
