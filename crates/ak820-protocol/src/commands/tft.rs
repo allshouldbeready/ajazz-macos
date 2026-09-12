@@ -42,6 +42,11 @@ pub const FRAME_BYTES: usize = PIXELS_PER_FRAME * BYTES_PER_PIXEL;
 /// Size of the frame-delay header that prefixes the pixel stream.
 pub const FRAME_HEADER_BYTES: usize = 256;
 
+/// Supplied-driver firmware reserves one complete 4096-byte report for frame
+/// timing metadata before the RGB565 frame stream.
+pub const LEGACY_FRAME_HEADER_BYTES: usize = 4096;
+pub const LEGACY_REPORT_BYTES: usize = 4096;
+
 /// Hard cap on frames per upload: header field is one byte and slot 0 is the
 /// count itself, so at most 255 frames can be encoded. The device's own
 /// `tftMaxFrames` in `GET_DEVICE_INFO` further constrains this (typically
@@ -174,6 +179,47 @@ impl TftAnimation {
         }
         Ok(out)
     }
+
+    /// Encode the animation layout used by the supplied Windows application.
+    /// Byte zero is the frame count, bytes 1..N are delays in 2-ms units, the
+    /// rest of the first 4 KiB report is 0xFF, then RGB565 frames follow.
+    pub fn encode_legacy(&self) -> Result<Vec<u8>> {
+        self.validate_frames()?;
+        let mut out = vec![0xFF; LEGACY_FRAME_HEADER_BYTES];
+        out[0] = self.frames.len() as u8;
+        for (index, frame) in self.frames.iter().enumerate() {
+            out[index + 1] = (frame.delay_ms / 2).clamp(1, u8::MAX as u16) as u8;
+        }
+        for frame in &self.frames {
+            out.extend_from_slice(&frame.pixels);
+        }
+        debug_assert_eq!(out.len() % LEGACY_REPORT_BYTES, 0);
+        Ok(out)
+    }
+
+    fn validate_frames(&self) -> Result<()> {
+        if self.frames.is_empty() {
+            return Err(Error::NotImplemented(
+                "TFT animation must have at least one frame",
+            ));
+        }
+        if self.frames.len() > MAX_FRAMES {
+            return Err(Error::OutOfRange {
+                field: "tft frame count",
+                value: self.frames.len() as i64,
+                max: MAX_FRAMES as i64,
+            });
+        }
+        for frame in &self.frames {
+            if frame.pixels.len() != FRAME_BYTES {
+                return Err(Error::FrameTooLong {
+                    len: frame.pixels.len(),
+                    max: FRAME_BYTES,
+                });
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Quantise one RGB888 sample into RGB565 (16-bit).
@@ -249,6 +295,31 @@ mod tests {
         assert_eq!(buf[255], 0xFF);
         // Body length = 3 × FRAME_BYTES
         assert_eq!(buf.len(), FRAME_HEADER_BYTES + 3 * FRAME_BYTES);
+    }
+
+    #[test]
+    fn encode_legacy_animation_matches_supplied_driver_layout() {
+        let frames = vec![
+            solid_color_frame(0xFF, 0, 0, 100),
+            solid_color_frame(0, 0xFF, 0, 700),
+        ];
+        let buf = TftAnimation { frames }.encode_legacy().expect("encode");
+
+        assert_eq!(buf.len(), LEGACY_FRAME_HEADER_BYTES + 2 * FRAME_BYTES);
+        assert_eq!(buf.len() / LEGACY_REPORT_BYTES, 17);
+        assert_eq!(&buf[..4], &[2, 50, 255, 0xFF]);
+        assert!(buf[3..LEGACY_FRAME_HEADER_BYTES]
+            .iter()
+            .all(|byte| *byte == 0xFF));
+        assert_eq!(
+            &buf[LEGACY_FRAME_HEADER_BYTES..LEGACY_FRAME_HEADER_BYTES + 2],
+            &[0x00, 0xF8]
+        );
+        assert_eq!(
+            &buf[LEGACY_FRAME_HEADER_BYTES + FRAME_BYTES
+                ..LEGACY_FRAME_HEADER_BYTES + FRAME_BYTES + 2],
+            &[0xE0, 0x07]
+        );
     }
 
     #[test]

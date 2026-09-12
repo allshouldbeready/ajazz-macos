@@ -56,6 +56,25 @@ The supplied application waits for START, MODE, and SAVE responses but not for
 DATA or FINISH. The macOS implementation always attempts FINISH after an error
 so a failed operation does not strand the device transaction state.
 
+### Supplied-driver TFT upload (`0x72`)
+
+The supplied driver uses interface 3 / `0xFF13` for transaction control and
+interface 2 / `0xFF68` for 4096-byte image reports. Its sequence is:
+
+1. feature exchange `START` (`04 18`);
+2. feature exchange `IMAGE` (`04 72`), with user slot `2` at byte 2 and the
+   little-endian 4096-byte report count at bytes 8–9;
+3. write every 4096-byte report on `0xFF68`, waiting up to 300 ms for the
+   optional input acknowledgement after each report; and
+4. feature exchange `SAVE` (`04 02`).
+
+The animation body begins with a complete 4096-byte metadata report filled
+with `FF`: byte 0 is the frame count and bytes `1..=N` hold each frame delay in
+2-ms units, clamped to `1..=255`. RGB565-LE frames follow consecutively at
+32768 bytes per frame. Therefore an N-frame transfer is exactly `1 + 8N`
+reports. This layout and sequence were recovered from the supplied executable;
+the independent gohv implementation corroborates the single-frame form.
+
 On 2026-09-12, the exact 65-byte framing and full lighting transaction were
 accepted by the connected ANSI keyboard, and the requested static-green result
 was visibly confirmed. The legacy clock transaction was also visibly confirmed

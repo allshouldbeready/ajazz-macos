@@ -13,7 +13,8 @@ use crate::commands::system::{DeviceInfoReport, GameMode, LegacySystemSettings};
 use crate::commands::tft::{build_tft_header, TftAnimation};
 use crate::legacy_protocol::{
     clock_data, clock_preamble, feature_report, finish_payload, lighting_data, lighting_preamble,
-    save_payload, start_payload, system_data, system_preamble, FEATURE_REPORT_LEN,
+    save_payload, start_payload, system_data, system_preamble, tft_image_preamble,
+    FEATURE_REPORT_LEN,
 };
 use crate::protocol::{
     build_frame, cmd, HEADER_LEN, MAGIC_INCOMING, PACKET_LEN, PAYLOAD_PER_PACKET, REPORT_ID,
@@ -202,6 +203,7 @@ pub fn enumerate() -> Result<Vec<DeviceInfo>> {
 
 pub struct Connection {
     device: HidDevice,
+    legacy_control: Option<HidDevice>,
     info: DeviceInfo,
     transport: TransportKind,
 }
@@ -211,13 +213,14 @@ pub struct Connection {
 pub enum TransportKind {
     OnlineOutput,
     LegacyFeature,
+    LegacyTft,
 }
 
 impl TransportKind {
     fn ensure_online_output(self) -> Result<()> {
         match self {
             Self::OnlineOutput => Ok(()),
-            Self::LegacyFeature => Err(Error::NotImplemented(
+            Self::LegacyFeature | Self::LegacyTft => Err(Error::NotImplemented(
                 "keymap, macro, and online-driver reports are unavailable on this keyboard firmware",
             )),
         }
@@ -285,6 +288,7 @@ impl Connection {
         );
         Ok(Self {
             device,
+            legacy_control: None,
             info: control,
             transport: TransportKind::OnlineOutput,
         })
@@ -309,6 +313,7 @@ impl Connection {
         );
         Ok(Self {
             device,
+            legacy_control: None,
             info,
             transport: TransportKind::LegacyFeature,
         })
@@ -691,15 +696,23 @@ impl Connection {
     /// inspecting the report descriptor with `probe_interfaces()` — the
     /// `0xFF67` collection advertises a 4104-byte output report).
     ///
-    /// Selection precedence: `AK820_TFT_USAGE_PAGE` env override, then the
-    /// fixed default `0xFF67`. Callers can hold both `open_control()` and
-    /// `open_tft()` connections concurrently — they're separate HID handles.
+    /// Selection precedence: `AK820_TFT_USAGE_PAGE` env override, then
+    /// `0xFF68` for supplied-driver firmware or `0xFF67` for online-driver
+    /// firmware. The supplied-driver upload also opens its `0xFF13` control
+    /// collection for the START / image-preamble / SAVE transaction.
     pub fn open_tft() -> Result<Self> {
         let candidates = enumerate()?;
+        let has_legacy_control = candidates
+            .iter()
+            .any(|candidate| candidate.usage_page == 0xFF13);
+        let has_online_tft = candidates
+            .iter()
+            .any(|candidate| candidate.usage_page == 0xFF67);
+        let legacy = has_legacy_control && !has_online_tft;
         let want_usage_page = std::env::var("AK820_TFT_USAGE_PAGE")
             .ok()
             .and_then(|v| u16::from_str_radix(v.trim_start_matches("0x"), 16).ok())
-            .unwrap_or(0xFF67);
+            .unwrap_or(if legacy { 0xFF68 } else { 0xFF67 });
         let pick = candidates
             .iter()
             .find(|d| d.usage_page == want_usage_page)
@@ -711,16 +724,36 @@ impl Connection {
         let api = HidApi::new()?;
         let device = api.open_path(&std::ffi::CString::new(pick.path.clone()).unwrap())?;
         device.set_blocking_mode(true)?;
+        let legacy_control = if legacy {
+            let control = candidates
+                .iter()
+                .find(|candidate| candidate.usage_page == 0xFF13)
+                .ok_or(Error::DeviceNotFound {
+                    vid: VENDOR_ID,
+                    interface: CONTROL_INTERFACE,
+                })?;
+            let handle = api.open_path(&std::ffi::CString::new(control.path.clone()).unwrap())?;
+            handle.set_blocking_mode(true)?;
+            Some(handle)
+        } else {
+            None
+        };
         info!(
             path = %pick.path,
             interface = pick.interface,
             usage_page = format!("0x{:04x}", pick.usage_page),
+            transport = if legacy { "supplied-driver" } else { "online-driver" },
             "opened TFT upload interface"
         );
         Ok(Self {
             device,
+            legacy_control,
             info: pick,
-            transport: TransportKind::OnlineOutput,
+            transport: if legacy {
+                TransportKind::LegacyTft
+            } else {
+                TransportKind::OnlineOutput
+            },
         })
     }
 
@@ -751,6 +784,9 @@ impl Connection {
     where
         F: FnMut(usize, usize) -> Result<()>,
     {
+        if self.transport == TransportKind::LegacyTft {
+            return self.upload_legacy_tft_animation(anim, progress);
+        }
         // Sanity-check the interface — if we're on the wrong one the
         // hidapi write will quietly fail with a frame-too-long error on macOS.
         if self.info.usage_page == 0xFF68 {
@@ -805,6 +841,63 @@ impl Connection {
             progress(i + 1, total_chunks)?;
         }
         Ok(())
+    }
+
+    fn upload_legacy_tft_animation<F>(&self, anim: &TftAnimation, mut progress: F) -> Result<()>
+    where
+        F: FnMut(usize, usize) -> Result<()>,
+    {
+        use crate::commands::tft::LEGACY_REPORT_BYTES;
+
+        const USER_IMAGE_SLOT: u8 = 2;
+        const ACK_TIMEOUT_MS: i32 = 300;
+
+        let control = self.legacy_control.as_ref().ok_or_else(|| {
+            Error::UnexpectedResponse("legacy TFT control interface is not open".into())
+        })?;
+        let payload = anim.encode_legacy()?;
+        let total_chunks = payload.len() / LEGACY_REPORT_BYTES;
+        let chunk_count = u16::try_from(total_chunks).map_err(|_| Error::OutOfRange {
+            field: "legacy TFT chunk count",
+            value: total_chunks as i64,
+            max: u16::MAX as i64,
+        })?;
+
+        info!(
+            frames = anim.frames.len(),
+            bytes = payload.len(),
+            chunks = total_chunks,
+            "supplied-driver TFT animation upload"
+        );
+
+        let result = (|| {
+            legacy_feature_exchange(control, &start_payload())?;
+            legacy_pause();
+            legacy_feature_exchange(control, &tft_image_preamble(USER_IMAGE_SLOT, chunk_count))?;
+            legacy_pause();
+
+            progress(0, total_chunks)?;
+            let mut report = vec![0u8; LEGACY_REPORT_BYTES + 1];
+            let mut response = vec![0u8; LEGACY_REPORT_BYTES];
+            for (index, chunk) in payload.chunks_exact(LEGACY_REPORT_BYTES).enumerate() {
+                report[0] = 0;
+                report[1..].copy_from_slice(chunk);
+                self.device.write(&report)?;
+                // The supplied application waits up to 300 ms for an input
+                // report after each 4 KiB write but does not reject a timeout.
+                let _ = self.device.read_timeout(&mut response, ACK_TIMEOUT_MS);
+                progress(index + 1, total_chunks)?;
+            }
+
+            legacy_pause();
+            legacy_feature_exchange(control, &save_payload())?;
+            Ok(())
+        })();
+
+        if result.is_err() {
+            let _ = legacy_feature_send(control, &finish_payload());
+        }
+        result
     }
 
     /// Read the 128-LED per-key colour map.

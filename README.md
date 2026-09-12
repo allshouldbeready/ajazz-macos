@@ -83,6 +83,7 @@ cargo +1.90.0 build -p ak820-cli --release --locked
 ./target/release/ak820 probe
 ./target/release/ak820 info
 ./target/release/ak820 sync-clock
+./target/release/ak820 tft probe
 ./target/release/ak820 lighting set --mode static --color FF00AA
 ./target/release/ak820 rgb fill --color 00FF80
 ./target/release/ak820 macros list

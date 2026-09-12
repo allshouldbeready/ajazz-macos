@@ -14,6 +14,7 @@ const FINISH: u8 = 0xF0;
 const LIGHTING: u8 = 0x13;
 const CLOCK: u8 = 0x28;
 const SYSTEM: u8 = 0x17;
+const TFT_IMAGE: u8 = 0x72;
 
 fn control_payload(command: u8, byte2: u8, byte8: u8) -> [u8; PAYLOAD_LEN] {
     let mut payload = [0u8; PAYLOAD_LEN];
@@ -46,6 +47,15 @@ pub fn clock_preamble() -> [u8; PAYLOAD_LEN] {
 
 pub fn system_preamble() -> [u8; PAYLOAD_LEN] {
     control_payload(SYSTEM, 1, 1)
+}
+
+/// Select the supplied driver's user-image slot and declare the number of
+/// 4096-byte reports that follow on the separate 0xFF68 data interface.
+pub fn tft_image_preamble(slot: u8, chunks: u16) -> [u8; PAYLOAD_LEN] {
+    let mut payload = control_payload(TFT_IMAGE, slot, 0);
+    payload[8] = chunks as u8;
+    payload[9] = (chunks >> 8) as u8;
+    payload
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -186,5 +196,13 @@ mod tests {
         let data = feature_report(&system_data(true, false, true, true, 2, 4));
         assert_eq!(&data[..10], &[0, 0, 1, 1, 0, 1, 1, 2, 0, 4]);
         assert_eq!(&data[63..], &[0xAA, 0x55]);
+    }
+
+    #[test]
+    fn tft_preamble_matches_supplied_installer() {
+        let preamble = feature_report(&tft_image_preamble(2, 0x0109));
+        assert_eq!(&preamble[..4], &[0, 0x04, 0x72, 2]);
+        assert_eq!(&preamble[9..11], &[0x09, 0x01]);
+        assert!(preamble[11..].iter().all(|byte| *byte == 0));
     }
 }

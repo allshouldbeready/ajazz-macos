@@ -1050,15 +1050,15 @@ async fn icloud_sync_pull(app: AppHandle) -> Result<Option<u64>, AppError> {
  * Two commands the TFT view uses:
  *   list_tft_presets    - returns the static catalogue (id, name, desc,
  *                         frame count, total ms). No device touched.
- *   apply_tft_preset    - builds the named animation, opens the 0xFF67 HID
- *                         interface, and uploads via the chunked-write path.
+ *   apply_tft_preset    - builds the named animation, opens the detected TFT
+ *                         interface, and uploads via its firmware-family path.
  *                         Drops the dedicated TFT handle on return — TFT
  *                         transfers are one-shot, no need to cache.
  *
- * The dedicated TFT interface is *not* the same handle as the `ConnState`
- * control connection (0xFF68). Both can be open concurrently. We open +
- * close per upload because TFT writes are infrequent compared to lighting
- * / keymap interactions.
+ * The dedicated TFT data interface is not the same handle as `ConnState`.
+ * Online-driver firmware uses 0xFF67; supplied-driver firmware uses 0xFF68
+ * for data plus 0xFF13 for transaction control. Handles are opened and closed
+ * per upload because TFT writes are infrequent.
  */
 
 #[tauri::command]

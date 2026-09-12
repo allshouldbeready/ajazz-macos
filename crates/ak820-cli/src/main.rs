@@ -47,13 +47,15 @@ enum Cmd {
     /// Inspect every HID interface's report descriptor — used to identify
     /// the right endpoint for big writes (TFT animation upload, etc.).
     HidDescriptors,
-    /// TFT display upload (128×128 RGB565 frames; cmd 80 on the 0xFF67 endpoint)
+    /// TFT display diagnostics and upload
     #[command(subcommand)]
     Tft(TftCmd),
 }
 
 #[derive(Subcommand)]
 enum TftCmd {
+    /// Open the detected TFT interfaces without writing to the keyboard.
+    Probe,
     /// Upload a single solid-colour frame to the TFT.
     Solid {
         #[arg(long, default_value = "FF00FF")]
@@ -163,6 +165,7 @@ fn main() -> Result<()> {
         Cmd::Rgb(RgbCmd::Fill { color }) => cmd_rgb_fill(cli.json, &color),
         Cmd::Rgb(RgbCmd::Rainbow) => cmd_rgb_rainbow(cli.json),
         Cmd::HidDescriptors => cmd_hid_descriptors(cli.json),
+        Cmd::Tft(TftCmd::Probe) => cmd_tft_probe(cli.json),
         Cmd::Tft(TftCmd::Solid { color }) => cmd_tft_solid(cli.json, &color),
         Cmd::Tft(TftCmd::Cycle { delay }) => cmd_tft_cycle(cli.json, delay),
         Cmd::Tft(TftCmd::SelectIndex { index }) => cmd_tft_select_index(cli.json, index),
@@ -453,6 +456,24 @@ fn cmd_tft_solid(json: bool, color: &str) -> Result<()> {
             r, g, b
         );
         println!("Verify the uploaded image on the keyboard display.");
+    }
+    Ok(())
+}
+
+fn cmd_tft_probe(json: bool) -> Result<()> {
+    let tft = ak820_protocol::Connection::open_tft()?;
+    if json {
+        println!(
+            "{}",
+            serde_json::json!({"ok": true, "transport": tft.transport(), "interface": tft.info()})
+        );
+    } else {
+        println!(
+            "TFT transport ready: {:?}, interface {}, usage page 0x{:04X}.",
+            tft.transport(),
+            tft.info().interface,
+            tft.info().usage_page
+        );
     }
     Ok(())
 }

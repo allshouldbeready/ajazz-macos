@@ -1,6 +1,7 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { open as openUrl } from "@tauri-apps/plugin-shell";
 import { Badge, Button, Card, ErrorBanner } from "../components/ui";
+import { formatError } from "../errors";
 import {
   downloadGif,
   searchGifs,
@@ -81,7 +82,7 @@ export function GifBrowser({ busy, onApply }: Props) {
       setResults(await searchGifs(provider, query, apiKeys[provider]));
     } catch (reason) {
       setResults([]);
-      setError(reason instanceof Error ? reason.message : "GIF search failed.");
+      setError(formatError(reason));
     } finally {
       setSearching(false);
     }
@@ -95,7 +96,7 @@ export function GifBrowser({ busy, onApply }: Props) {
       const bytes = await downloadGif(selected);
       await onApply(selected, bytes, transform);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not prepare this GIF.");
+      setError(formatError(reason));
     } finally {
       setPreparing(false);
     }
