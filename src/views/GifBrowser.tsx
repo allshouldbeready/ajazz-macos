@@ -33,6 +33,9 @@ const KEY_STORAGE: Record<GifProvider, string> = {
   tenor: "ajazz-macos:tenor-api-key",
 };
 
+const DEFAULT_FRAME_BUDGET = 30;
+const MAX_FRAME_BUDGET = 140;
+
 const DEFAULT_TRANSFORM: TftImageTransform = {
   fit: "fill",
   zoom_percent: 100,
@@ -40,7 +43,7 @@ const DEFAULT_TRANSFORM: TftImageTransform = {
   position_y: 50,
   background: "000000",
   speed_percent: 100,
-  max_frames: 30,
+  max_frames: DEFAULT_FRAME_BUDGET,
 };
 
 export function GifBrowser({ busy, onApply }: Props) {
@@ -266,7 +269,7 @@ export function GifBrowser({ busy, onApply }: Props) {
               onChange={(value) => updateTransform("position_y", value)} />
             <EditorRange label="Playback speed" value={transform.speed_percent} min={25} max={400} suffix="%"
               onChange={(value) => updateTransform("speed_percent", value)} />
-            <EditorRange label="Frame budget" value={transform.max_frames} min={1} max={30}
+            <EditorRange label="Frame budget" value={transform.max_frames} min={1} max={MAX_FRAME_BUDGET}
               onChange={(value) => updateTransform("max_frames", value)} />
             <label className="flex items-center justify-between gap-3 text-xs text-fg-2">
               <span>Letterbox color</span>
@@ -295,10 +298,20 @@ export function GifBrowser({ busy, onApply }: Props) {
           <p className="mt-2 text-[11px] leading-relaxed text-fg-3">
             Crop and sizing match the TFT output. If a GIF exceeds the frame budget, frames are sampled across its full timeline instead of cutting off the ending.
           </p>
+          {transform.max_frames > DEFAULT_FRAME_BUDGET && (
+            <p className="mt-2 text-[11px] leading-relaxed text-amber-300">
+              Extended transfer: up to {estimatedTransferMiB(transform.max_frames)} MiB. The official limit is 140 frames; larger uploads can take several minutes.
+            </p>
+          )}
         </div>
       </div>
     </Card>
   );
+}
+
+function estimatedTransferMiB(frameCount: number): string {
+  const reportBytes = (1 + 8 * frameCount) * 4096;
+  return (reportBytes / (1024 * 1024)).toFixed(1);
 }
 
 function EditorRange({

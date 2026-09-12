@@ -1090,6 +1090,7 @@ async fn upload_tft_with_progress(
     let worker_state = upload_state.clone();
     let worker_result = tokio::task::spawn_blocking(move || -> Result<(), AppError> {
         let tft = Connection::open_tft().map_err(AppError::from)?;
+        let mut last_emitted_percent = None;
         let result = tft.upload_tft_animation_with_progress(&anim, |completed, total| {
             if completed < total && worker_state.cancelled.load(Ordering::Acquire) {
                 return Err(ak820_protocol::Error::Cancelled);
@@ -1099,14 +1100,17 @@ async fn upload_tft_with_progress(
             } else {
                 ((completed * 100) / total).min(100) as u8
             };
-            let _ = app.emit(
-                "tft-upload-progress",
-                TftUploadProgress {
-                    completed_chunks: completed,
-                    total_chunks: total,
-                    percent,
-                },
-            );
+            if last_emitted_percent != Some(percent) {
+                let _ = app.emit(
+                    "tft-upload-progress",
+                    TftUploadProgress {
+                        completed_chunks: completed,
+                        total_chunks: total,
+                        percent,
+                    },
+                );
+                last_emitted_percent = Some(percent);
+            }
             Ok(())
         });
         drop(tft);

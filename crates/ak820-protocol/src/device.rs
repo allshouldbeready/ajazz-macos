@@ -873,7 +873,10 @@ impl Connection {
         use crate::commands::tft::LEGACY_REPORT_BYTES;
 
         const USER_IMAGE_SLOT: u8 = 2;
-        const ACK_TIMEOUT_MS: i32 = 300;
+        // Image-block acknowledgements are optional on this firmware. Polling
+        // drains one when already available, but must not stall every 4 KiB
+        // write: a 140-frame upload contains 1,121 reports.
+        const ACK_POLL_MS: i32 = 0;
 
         let control = self.legacy_control.as_ref().ok_or_else(|| {
             Error::UnexpectedResponse("legacy TFT control interface is not open".into())
@@ -910,9 +913,10 @@ impl Connection {
                 self.device
                     .write(&report)
                     .map_err(|error| tft_stage_error("image report", error.into()))?;
-                // The supplied application waits up to 300 ms for an input
-                // report after each 4 KiB write but does not reject a timeout.
-                let _ = self.device.read_timeout(&mut response, ACK_TIMEOUT_MS);
+                // The synchronous HID write provides USB backpressure. Drain
+                // an optional acknowledgement without waiting; START,
+                // preamble, and SAVE remain verified feature exchanges.
+                let _ = self.device.read_timeout(&mut response, ACK_POLL_MS);
                 progress(index + 1, total_chunks)?;
             }
 

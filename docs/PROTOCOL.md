@@ -64,8 +64,9 @@ interface 2 / `0xFF68` for 4096-byte image reports. Its sequence is:
 1. feature exchange `START` (`04 18`);
 2. feature exchange `IMAGE` (`04 72`), with user slot `2` at byte 2 and the
    little-endian 4096-byte report count at bytes 8–9;
-3. write every 4096-byte report on `0xFF68`, waiting up to 300 ms for the
-   optional input acknowledgement after each report; and
+3. write every 4096-byte report on `0xFF68`, non-blockingly draining any
+   optional input acknowledgement while relying on synchronous HID writes for
+   USB backpressure; and
 4. feature exchange `SAVE` (`04 02`); and
 5. send `FINISH` (`04 F0`) without waiting for a response, closing the device
    transaction so the keyboard's own TFT menu remains responsive.
@@ -92,8 +93,10 @@ a 16-frame GIPHY animation completed all 129 reports (`1 + 8 × 16`) and the
 final `SAVE` without a transport error. Visual TFT confirmation is recorded
 separately because successful HID completion alone does not prove rendering.
 After full-timeline sampling and post-SAVE `FINISH` were added, a user-initiated
-30-frame GIPHY transfer also completed successfully. Physical full-loop and
-keyboard-menu confirmation remain separate acceptance evidence.
+30-frame GIPHY transfer also completed successfully. The user then visibly
+confirmed correct 128×128 alignment and complete-loop playback on the physical
+TFT. The browser editor permits up to the supplied driver's declared
+`gif_maxframes="140"`; 30 remains its faster default.
 The subsequent Quadrants photograph identified the remaining spatial bug: a
 15-row white band preceded the intended framebuffer because the encoder used a
 4096-byte header instead of the installer's configured 256-byte header.
@@ -289,7 +292,10 @@ byte 7 = 0x06          //                       (6619136/4096) >> 8   = 0x06
 - `delay[i] * 5` means the source supplies an integer in 5-ms units. To replicate a GIF with 100 ms / frame, send `delay = 20` (because 20 × 5 = 100 ms). Max representable: 255 × 5 = 1 275 ms / frame.
 - Only N−1 delays are sent in the header (one per transition between frames). The N-th slot is the terminator `0x00`.
 
-**Capacity** (from device-info `tftMaxFrames`): the AK820 Pro reports a TFT capacity around 30+ frames per upload (Phase 2 probe shows `tft_max_frames` directly). Larger GIFs need decimation client-side.
+**Capacity:** the supplied ANSI driver declares `gif_maxframes="140"`, which is
+the editor ceiling. The one-byte wire count can represent up to 255 frames, but
+that larger value is not treated as supported without hardware evidence.
+Larger GIFs are decimated across the complete source timeline client-side.
 
 
 

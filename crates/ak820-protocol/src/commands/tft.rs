@@ -49,9 +49,9 @@ pub const LEGACY_FRAME_HEADER_BYTES: usize = 256;
 pub const LEGACY_REPORT_BYTES: usize = 4096;
 
 /// Hard cap on frames per upload: header field is one byte and slot 0 is the
-/// count itself, so at most 255 frames can be encoded. The device's own
-/// `tftMaxFrames` in `GET_DEVICE_INFO` further constrains this (typically
-/// ~30 on the AK820 Pro — clamp client-side before encode).
+/// count itself, so at most 255 frames can be encoded. The supported device
+/// capacity may be lower; the supplied ANSI driver declares 140 frames, which
+/// callers enforce before encoding.
 pub const MAX_FRAMES: usize = 255;
 
 /// Per-frame delay multiplier. The driver stores delays in 5-ms units, so the

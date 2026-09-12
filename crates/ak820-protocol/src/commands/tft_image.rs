@@ -85,7 +85,7 @@ impl Default for ImageTransform {
             position_y: 50,
             background: "000000".into(),
             speed_percent: 100,
-            max_frames: MAX_FRAMES_FOR_GIF,
+            max_frames: DEFAULT_FRAMES_FOR_GIF,
         }
     }
 }
@@ -95,7 +95,9 @@ impl Default for ImageTransform {
 /// also clamp ridiculously short delays (e.g. 0 ms or 10 ms) to a sane
 /// minimum so the panel isn't asked to refresh faster than it can.
 const MIN_FRAME_DELAY_MS: u16 = 40; // 25 fps ceiling
-const MAX_FRAMES_FOR_GIF: usize = 30; // device-reported `tftMaxFrames` ≈ 30
+const DEFAULT_FRAMES_FOR_GIF: usize = 30;
+/// Maximum declared by the supplied ANSI driver's `gif_maxframes` setting.
+pub const MAX_FRAMES_FOR_GIF: usize = 140;
 const MAX_SOURCE_DIMENSION: u32 = 8192;
 const MAX_DECODE_ALLOC: u64 = 128 * 1024 * 1024;
 const MAX_INTERMEDIATE_DIMENSION: u32 = 4096;
@@ -462,5 +464,12 @@ mod tests {
     fn sampling_indices_include_first_and_last_frame() {
         assert_eq!(sampled_frame_indices(40, 5), vec![0, 10, 20, 29, 39]);
         assert_eq!(sampled_frame_indices(3, 5), vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn frame_budget_uses_fast_default_and_official_ceiling() {
+        assert_eq!(ImageTransform::default().max_frames, 30);
+        assert_eq!(0_usize.clamp(1, MAX_FRAMES_FOR_GIF), 1);
+        assert_eq!(255_usize.clamp(1, MAX_FRAMES_FOR_GIF), 140);
     }
 }

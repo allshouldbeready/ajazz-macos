@@ -14,9 +14,9 @@ The proprietary installer and extracted files are intentionally not included.
 | Macros | Implemented | Bounds and codec tests | Pending ANSI wired device |
 | TFT built-in/default selection | Implemented | Command tests | Pending visible confirmation |
 | PNG/JPEG TFT upload | Implemented | Decode/fit/RGB565 tests | Pending visible confirmation |
-| Animated GIF TFT upload | Implemented; full-timeline sampling and corrected 256-byte legacy header | Decode, frame-budget, final-frame, duration, header-offset, and padding tests | Corrected spatial layout and full-loop playback pending confirmation |
+| Animated GIF TFT upload | Implemented; 1–140 frame budget, full-timeline sampling, and corrected 256-byte legacy header | Decode, frame-budget, final-frame, duration, header-offset, and padding tests | Correct spatial layout and full-loop playback visibly confirmed on wired ANSI hardware |
 | TFT progress and cancellation | Implemented | State and cancellation tests | Pending interrupted upload test |
 
-Full parity must not be claimed until still-image and animated-GIF uploads are
-visibly confirmed on the physical display and the original keyboard state can
-be restored afterward.
+Full parity must not be claimed until the remaining pending hardware rows,
+including still-image upload, are visibly confirmed and the original keyboard
+state can be restored afterward.
