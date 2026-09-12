@@ -32,6 +32,10 @@ Selecting a result opens a live 128 × 128 preview. The editor supports:
   30 remains the fast default. Longer GIFs are sampled across their complete
   timeline, including the final frame, rather than truncating the ending.
 
+Every numeric adjustment can be changed with either its slider or the compact
+value field beside it. Typed values are rounded and clamped to the same safe
+range on blur or Enter; Escape restores the current slider value.
+
 The editor warns when the budget exceeds 30 frames because a 140-frame RGB565
 transfer is approximately 4.4 MiB (1,121 HID reports) and can take several
 minutes. The connected legacy firmware requires per-report pacing even when an

@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { open as openUrl } from "@tauri-apps/plugin-shell";
 import { Badge, Button, Card, ErrorBanner } from "../components/ui";
 import { formatError } from "../errors";
@@ -329,8 +329,23 @@ function EditorRange({
   suffix?: string;
   onChange: (value: number) => void;
 }) {
+  const [draft, setDraft] = useState(String(value));
+
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+
+  function commitDraft(): void {
+    const parsed = Number(draft);
+    const next = Number.isFinite(parsed)
+      ? Math.min(max, Math.max(min, Math.round(parsed)))
+      : value;
+    setDraft(String(next));
+    if (next !== value) onChange(next);
+  }
+
   return (
-    <label className="grid grid-cols-[110px_1fr_48px] items-center gap-2 text-xs text-fg-2">
+    <label className="grid grid-cols-[110px_minmax(72px,1fr)_68px] items-center gap-2 text-xs text-fg-2">
       <span>{label}</span>
       <input
         type="range"
@@ -340,7 +355,39 @@ function EditorRange({
         onChange={(event) => onChange(Number(event.target.value))}
         style={{ "--pct": `${((value - min) / (max - min)) * 100}%` } as CSSProperties}
       />
-      <span className="text-right font-mono text-fg-1">{value}{suffix}</span>
+      <span className="relative block">
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={1}
+          inputMode="numeric"
+          aria-label={`${label} value`}
+          value={draft}
+          onChange={(event) => {
+            const nextDraft = event.target.value;
+            setDraft(nextDraft);
+            const parsed = Number(nextDraft);
+            if (nextDraft !== "" && Number.isFinite(parsed) && parsed >= min && parsed <= max) {
+              onChange(Math.round(parsed));
+            }
+          }}
+          onBlur={commitDraft}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.currentTarget.blur();
+            if (event.key === "Escape") {
+              setDraft(String(value));
+              event.currentTarget.blur();
+            }
+          }}
+          className={`h-8 w-full rounded-md border border-line bg-surface-raised py-1 text-right font-mono tabular-nums text-fg-1 outline-none transition focus:border-accent-400 focus:ring-2 focus:ring-accent-500/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${suffix ? "pl-1.5 pr-5" : "px-2"}`}
+        />
+        {suffix && (
+          <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center font-mono text-fg-3">
+            {suffix}
+          </span>
+        )}
+      </span>
     </label>
   );
 }
