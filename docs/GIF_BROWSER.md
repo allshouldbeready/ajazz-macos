@@ -1,6 +1,6 @@
 # Online GIF browser and TFT editor
 
-The TFT page searches GIPHY without an AJAZZ macOS proxy. Search requests
+The TFT page searches GIPHY without an AK820 Pro Control proxy. Search requests
 originate in the desktop client, and GIPHY receives the API key and search term
 directly.
 

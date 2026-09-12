@@ -1373,7 +1373,7 @@ pub fn run() {
             // About-dialog payload keeps both current ownership and the
             // squashed upstream attribution visible.
             let about_meta = AboutMetadataBuilder::new()
-                .name(Some("AJAZZ macOS"))
+                .name(Some("AK820 Pro Control"))
                 .version(Some(env!("CARGO_PKG_VERSION")))
                 .copyright(Some(
                     "Copyright (c) 2026 allshouldbeready and wsclx · MIT licensed",
@@ -1382,16 +1382,16 @@ pub fn run() {
                     "allshouldbeready".to_string(),
                     "wsclx (upstream)".to_string(),
                 ]))
-                .website(Some("https://github.com/allshouldbeready/ajazz-macos"))
-                .website_label(Some("github.com/allshouldbeready/ajazz-macos"))
+                .website(Some("https://github.com/allshouldbeready/ak820-pro-macos"))
+                .website_label(Some("github.com/allshouldbeready/ak820-pro-macos"))
                 .comments(Some(
                     "Open-source, macOS-first control software for the Epomaker / Ajazz AK820 Pro mechanical keyboard.",
                 ))
                 .build();
 
             // Native macOS-style menu with the shortcuts users expect.
-            let app_menu = SubmenuBuilder::new(app, "AJAZZ macOS")
-                .item(&PredefinedMenuItem::about(app, Some("About AJAZZ macOS"), Some(about_meta))?)
+            let app_menu = SubmenuBuilder::new(app, "AK820 Pro Control")
+                .item(&PredefinedMenuItem::about(app, Some("About AK820 Pro Control"), Some(about_meta))?)
                 .separator()
                 .item(&PredefinedMenuItem::hide(app, None)?)
                 .item(&PredefinedMenuItem::hide_others(app, None)?)
@@ -1470,7 +1470,7 @@ pub fn run() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("error while running AJAZZ macOS");
+        .expect("error while running AK820 Pro Control");
 }
 
 #[cfg(test)]

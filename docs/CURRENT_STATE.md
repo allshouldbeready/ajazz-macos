@@ -5,7 +5,7 @@ Every configuration view identifies where its displayed state came from:
 - **Read from keyboard** means the firmware returned the value in the current
   session. Online-output lighting, System, keymaps, macros, and per-key RGB use
   this path and re-read after writes.
-- **Last applied by AJAZZ macOS** means the supplied-driver firmware or TFT
+- **Last applied by AK820 Pro Control** means the supplied-driver firmware or TFT
   protocol has no corresponding read command. The app persists only a
   configuration that it successfully wrote and restores that shadow on the
   next launch.

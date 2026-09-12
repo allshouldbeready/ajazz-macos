@@ -18,7 +18,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "ajazz-macos-app"
+name = "ak820-cli"
+version = "0.7.0-beta"
+dependencies = [
+ "ak820-protocol",
+ "anyhow",
+ "clap",
+ "hex",
+ "serde_json",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "ak820-pro-macos-app"
 version = "0.7.0-beta"
 dependencies = [
  "ak820-protocol",
@@ -34,19 +47,6 @@ dependencies = [
  "tauri-plugin-shell",
  "thiserror 2.0.18",
  "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "ak820-cli"
-version = "0.7.0-beta"
-dependencies = [
- "ak820-protocol",
- "anyhow",
- "clap",
- "hex",
- "serde_json",
  "tracing",
  "tracing-subscriber",
 ]

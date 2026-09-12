@@ -2,7 +2,7 @@
 
 ## Our pledge
 
-We — contributors, maintainers, and users of **AJAZZ macOS** — pledge to make participation in our project a harassment-free experience for everyone, regardless of age, body size, visible or invisible disability, ethnicity, sex characteristics, gender identity and expression, level of experience, education, socio-economic status, nationality, personal appearance, race, religion, or sexual identity and orientation.
+We — contributors, maintainers, and users of **AK820 Pro Control** — pledge to make participation in our project a harassment-free experience for everyone, regardless of age, body size, visible or invisible disability, ethnicity, sex characteristics, gender identity and expression, level of experience, education, socio-economic status, nationality, personal appearance, race, religion, or sexual identity and orientation.
 
 We pledge to act and interact in ways that contribute to an open, welcoming, diverse, inclusive, and healthy community.
 
@@ -38,7 +38,7 @@ This Code of Conduct applies within all project spaces — the GitHub repository
 
 Instances of abusive, harassing, or otherwise unacceptable behaviour may be
 reported confidentially through a
-[private security advisory](https://github.com/allshouldbeready/ajazz-macos/security/advisories/new).
+[private security advisory](https://github.com/allshouldbeready/ak820-pro-macos/security/advisories/new).
 All complaints will be reviewed and investigated promptly and fairly.
 
 All project maintainers are obligated to respect the privacy and security of the reporter of any incident.

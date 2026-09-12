@@ -1,6 +1,6 @@
-# Installing AJAZZ macOS
+# Installing AK820 Pro Control
 
-`AJAZZ macOS` is currently distributed as source. There are no official public
+`AK820 Pro Control` is currently distributed as source. There are no official public
 binaries. A future release must be signed, notarized, hardware-tested, and
 include complete third-party license notices.
 
@@ -29,8 +29,8 @@ pnpm --version     # → 11.19.x
 ## Build the desktop app
 
 ```bash
-git clone https://github.com/allshouldbeready/ajazz-macos.git
-cd ajazz-macos
+git clone https://github.com/allshouldbeready/ak820-pro-macos.git
+cd ak820-pro-macos
 pnpm install --frozen-lockfile
 
 # Production-style bundle (creates target/release/bundle/dmg/*.dmg)
@@ -40,7 +40,7 @@ pnpm tauri:build
 pnpm tauri:build --bundles app
 ```
 
-Open your locally built `.dmg`, drag **AJAZZ macOS.app** into Applications, and launch.
+Open your locally built `.dmg`, drag **AK820 Pro Control.app** into Applications, and launch.
 
 > The local build is unsigned and not notarized. macOS may require you to
 > control-click the app, choose **Open**, and confirm. Only bypass Gatekeeper
@@ -114,4 +114,4 @@ If `list` returns nothing, the device isn't connected on USB / 2.4 GHz / BT. If 
 | App freezes when clicking certain tabs | `std::sync::Mutex` deadlock pattern | Already fixed in 0.5.0-beta+. If you see this on a recent build, file a bug. |
 | Macros don't fire on F-row keys | macOS hardware switch on the back is set to "Mac" — firmware preempts the F-row with media keys | Use the **Fn** layer in the Keymap view (Fn + F-key triggers your macro), or switch the back of the keyboard to "Win" mode |
 
-For anything not covered above, see [`docs/HANDOFF.md`](HANDOFF.md) for the full foot-gun catalogue or open an [issue](https://github.com/allshouldbeready/ajazz-macos/issues/new/choose).
+For anything not covered above, see [`docs/HANDOFF.md`](HANDOFF.md) for the full foot-gun catalogue or open an [issue](https://github.com/allshouldbeready/ak820-pro-macos/issues/new/choose).

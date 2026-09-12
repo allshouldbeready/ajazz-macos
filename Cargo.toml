@@ -11,8 +11,8 @@ version = "0.7.0-beta"
 edition = "2021"
 authors = ["allshouldbeready", "wsclx"]
 license = "MIT"
-repository = "https://github.com/allshouldbeready/ajazz-macos"
-homepage = "https://github.com/allshouldbeready/ajazz-macos"
+repository = "https://github.com/allshouldbeready/ak820-pro-macos"
+homepage = "https://github.com/allshouldbeready/ak820-pro-macos"
 description = "Open-source macOS-first control software for the Epomaker / Ajazz AK820 Pro mechanical keyboard"
 rust-version = "1.90"
 

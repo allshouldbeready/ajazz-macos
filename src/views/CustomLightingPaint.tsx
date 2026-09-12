@@ -178,7 +178,7 @@ export function CustomLightingPaint({ inheritedConfig }: Props) {
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm text-fg-2">
             {err
-              ? "This firmware does not expose its per-key LED buffer, so AJAZZ macOS will not display a guessed color map."
+              ? "This firmware does not expose its per-key LED buffer, so AK820 Pro Control will not display a guessed color map."
               : "Reading the current LED state from the keyboard…"}
           </p>
           {err && (

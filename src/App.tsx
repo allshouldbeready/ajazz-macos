@@ -80,7 +80,7 @@ export default function App() {
 
   return (
     <Layout
-      brand="AJAZZ macOS"
+      brand="AK820 Pro Control"
       phaseLabel="ANSI · Beta"
       nav={NAV}
       active={tab}

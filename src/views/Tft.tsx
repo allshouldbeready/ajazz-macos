@@ -212,7 +212,7 @@ export function Tft() {
 
       {lastTft && (
         <div className="mb-5 flex items-center gap-2 text-xs text-fg-2">
-          <Badge tone="warn">Last applied by AJAZZ macOS</Badge>
+          <Badge tone="warn">Last applied by AK820 Pro Control</Badge>
           <span>{lastTft.value.label} · {new Date(lastTft.savedAt).toLocaleString()}</span>
         </div>
       )}

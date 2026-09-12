@@ -1,6 +1,6 @@
 {
-  "name": "ajazz-macos",
-  "productName": "AJAZZ macOS",
+  "name": "ak820-pro-macos",
+  "productName": "AK820 Pro Control",
   "description": "Open-source macOS-first control software for the Epomaker / Ajazz AK820 Pro mechanical keyboard",
   "version": "0.7.0-beta",
   "license": "MIT",
@@ -9,13 +9,13 @@
     "node": ">=22.13"
   },
   "packageManager": "pnpm@11.19.0",
-  "homepage": "https://github.com/allshouldbeready/ajazz-macos",
+  "homepage": "https://github.com/allshouldbeready/ak820-pro-macos",
   "repository": {
     "type": "git",
-    "url": "https://github.com/allshouldbeready/ajazz-macos.git"
+    "url": "https://github.com/allshouldbeready/ak820-pro-macos.git"
   },
   "bugs": {
-    "url": "https://github.com/allshouldbeready/ajazz-macos/issues"
+    "url": "https://github.com/allshouldbeready/ak820-pro-macos/issues"
   },
   "private": true,
   "type": "module",

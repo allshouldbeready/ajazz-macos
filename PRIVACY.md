@@ -1,6 +1,6 @@
 # Privacy
 
-AJAZZ macOS has no project-operated telemetry, analytics service, account
+AK820 Pro Control has no project-operated telemetry, analytics service, account
 system, advertising service, or listening network port.
 
 Most processing is local: keyboard settings are exchanged over USB HID and app
@@ -12,8 +12,9 @@ following data flows:
   selected media from GIPHY-controlled hosts. The key is stored in localStorage
   on that Mac. GIPHY's terms and privacy policy apply.
 - **iCloud Drive sync:** when the user enables it, automation data is copied to
-  a visible `AJAZZ macOS` folder in the user's iCloud Drive. Apple's iCloud
-  terms and privacy practices apply.
+  the legacy `ajazz-macos` folder in the user's iCloud Drive. The legacy folder
+  name is retained so existing beta users do not lose sync continuity. Apple's
+  iCloud terms and privacy practices apply.
 - **Now Playing:** the app can query the local Music or Spotify desktop app
   through macOS automation APIs. The project does not receive that data.
 - **Automations:** user-created AppleScript, Shortcuts, and shell commands run

@@ -1,7 +1,7 @@
 /**
  * Persistent shadow state for supplied-driver firmware, whose configuration
  * protocol has writes but no matching reads. Values stored here are always
- * labelled "last applied by AJAZZ macOS" in the UI, never "current".
+ * labelled "last applied by AK820 Pro Control" in the UI, never "current".
  */
 
 const PREFIX = "ajazz-macos:last-applied:";

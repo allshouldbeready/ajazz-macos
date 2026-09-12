@@ -11,7 +11,7 @@ Pre-1.0 security fixes are made on the current `main` branch only.
 
 ## Security and safety model
 
-AJAZZ macOS controls a USB HID device and can run explicitly configured local
+AK820 Pro Control controls a USB HID device and can run explicitly configured local
 automations. Important boundaries are:
 
 - Hardware writes require an in-app confirmation for the current connection,
@@ -34,7 +34,7 @@ configuration recovery do not work.
 
 ## Reporting a vulnerability
 
-Please use a [private GitHub security advisory](https://github.com/allshouldbeready/ajazz-macos/security/advisories/new).
+Please use a [private GitHub security advisory](https://github.com/allshouldbeready/ak820-pro-macos/security/advisories/new).
 Do not publish credentials, serial numbers, private media, packet captures, or
 exploitable details in a public issue.
 

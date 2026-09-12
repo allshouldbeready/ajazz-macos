@@ -1,4 +1,4 @@
-# Contributing to AJAZZ macOS
+# Contributing to AK820 Pro Control
 
 Thank you for contributing. By submitting a contribution, you agree that it is
 licensed under this repository's [MIT License](LICENSE) and that you have the
@@ -26,8 +26,8 @@ incompatible with this project.
 Requirements are Rust 1.90 through Rustup, Node.js 24, and pnpm 11.19.0.
 
 ```bash
-git clone https://github.com/allshouldbeready/ajazz-macos.git
-cd ajazz-macos
+git clone https://github.com/allshouldbeready/ak820-pro-macos.git
+cd ak820-pro-macos
 export PATH="$HOME/.cargo/bin:$PATH"
 pnpm install --frozen-lockfile
 cargo +1.90.0 test --workspace --locked

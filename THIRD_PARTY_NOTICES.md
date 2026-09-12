@@ -6,7 +6,7 @@ their normal registries under each package's own license.
 
 ## Upstream project
 
-AJAZZ macOS is derived from
+AK820 Pro Control is derived from
 [`wsclx/ak820pro-modder`](https://github.com/wsclx/ak820pro-modder), copyright
 2026 wsclx, licensed under the MIT License. The required copyright and
 permission notice is preserved in [LICENSE](LICENSE).

@@ -278,7 +278,7 @@ export function Lighting() {
         >
           {stateSource === null && (
             <p className="mb-4 rounded-md border border-warn/40 bg-warn-soft px-3 py-2 text-xs text-warn">
-              This firmware cannot report its current lighting. Select and Apply a configuration once so AJAZZ macOS can remember it.
+              This firmware cannot report its current lighting. Select and Apply a configuration once so AK820 Pro Control can remember it.
             </p>
           )}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">

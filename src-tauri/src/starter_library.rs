@@ -133,9 +133,9 @@ pub fn library() -> Vec<StarterAutomation> {
         // ----- Web -----------------------------------------------------
         StarterAutomation {
             name: "Open this app on GitHub",
-            description: "Pop the AJAZZ macOS GitHub repo open in your default browser.",
+            description: "Pop the AK820 Pro Control GitHub repo open in your default browser.",
             kind: AutomationKind::Shell,
-            payload: "open \"https://github.com/allshouldbeready/ajazz-macos\"",
+            payload: "open \"https://github.com/allshouldbeready/ak820-pro-macos\"",
             category: "Web",
         },
 

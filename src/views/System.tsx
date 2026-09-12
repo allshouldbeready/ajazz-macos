@@ -223,7 +223,7 @@ export function System() {
             <p className="text-sm leading-relaxed text-fg-2">
               Lighting, TFT clock sync, and the official System settings block are available.
               This firmware cannot report its current System values. The controls below show the
-              last settings applied by AJAZZ macOS when available; otherwise they begin with the
+              last settings applied by AK820 Pro Control when available; otherwise they begin with the
               vendor defaults and only change the keyboard when you press Save.
             </p>
           </Card>
@@ -376,7 +376,7 @@ export function System() {
           </Card>
           <Card title="Safety boundary">
             <p className="text-sm leading-relaxed text-fg-2">
-              AJAZZ macOS never invokes firmware update or bootloader operations. Device writes
+              AK820 Pro Control never invokes firmware update or bootloader operations. Device writes
               are serialized and require session approval; settings are read back when supported.
             </p>
           </Card>

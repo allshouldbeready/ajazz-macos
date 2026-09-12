@@ -1,6 +1,6 @@
 <div align="center">
 
-# AJAZZ macOS
+# AK820 Pro Control
 
 **A macOS-first control application for the ANSI AJAZZ AK820 Pro.**
 
@@ -130,4 +130,4 @@ protocol credits are recorded in [NOTICE.md](NOTICE.md),
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and
 [docs/PROTOCOL.md](docs/PROTOCOL.md).
 
-AJAZZ macOS is independent and is not endorsed by AJAZZ or Epomaker.
+AK820 Pro Control is independent and is not endorsed by AJAZZ or Epomaker.

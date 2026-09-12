@@ -1,5 +1,5 @@
 [package]
-name = "ajazz-macos-app"
+name = "ak820-pro-macos-app"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -9,7 +9,7 @@ rust-version.workspace = true
 description = "Tauri shell for the AK820 Pro control app"
 
 [lib]
-name = "ajazz_macos_lib"
+name = "ak820_pro_macos_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

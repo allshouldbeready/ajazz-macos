@@ -331,7 +331,7 @@ export function Keymap() {
         ) : (
           <p className="text-sm text-fg-2">
             {err
-              ? "This firmware does not expose its keymap, so AJAZZ macOS will not display guessed assignments."
+              ? "This firmware does not expose its keymap, so AK820 Pro Control will not display guessed assignments."
               : "Reading the active assignments from the keyboard…"}
           </p>
         )}

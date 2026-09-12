@@ -1,6 +1,6 @@
 # Disclaimer
 
-AJAZZ macOS is an unofficial, independently developed interoperability
+AK820 Pro Control is an unofficial, independently developed interoperability
 project. It is not affiliated with, sponsored by, authorized by, or endorsed
 by AJAZZ, Epomaker, or their affiliates.
 

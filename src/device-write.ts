@@ -15,7 +15,7 @@ export async function invokeDeviceWrite<T>(
 ): Promise<T> {
   if (!writeSessionApproved) {
     const approved = await confirm(
-      `Allow AJAZZ macOS to modify the connected keyboard?\n\n${description}\n\n` +
+      `Allow AK820 Pro Control to modify the connected keyboard?\n\n${description}\n\n` +
         "The app will never access firmware-update or bootloader mode. This approval lasts until you reconnect or restart the app.",
       {
         title: "Confirm keyboard write",
