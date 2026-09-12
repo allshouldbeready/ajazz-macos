@@ -160,6 +160,10 @@ impl Mode {
             .copied()
     }
 
+    pub fn from_byte(value: u8) -> Option<Self> {
+        Self::ALL.iter().find(|mode| **mode as u8 == value).copied()
+    }
+
     pub fn supported_directions(self) -> &'static [Direction] {
         match self {
             Self::Scrolling => &[Direction::Up, Direction::Down],
@@ -223,6 +227,42 @@ impl LightingConfig {
             .as_deref()
             .and_then(parse_hex_rgb)
             .unwrap_or((0, 0, 0))
+    }
+
+    pub fn parse(b: &[u8]) -> crate::Result<Self> {
+        if b.len() < LED_EFFECT_LEN {
+            return Err(crate::Error::UnexpectedResponse(format!(
+                "lighting payload is {} bytes, expected {LED_EFFECT_LEN}",
+                b.len()
+            )));
+        }
+        let get = |index: usize| b.get(index).copied().unwrap_or(0);
+        let mode = Mode::from_byte(get(0)).ok_or_else(|| {
+            crate::Error::UnexpectedResponse(format!("unknown lighting mode 0x{:02x}", get(0)))
+        })?;
+        let direction = match get(11) {
+            0 => Direction::Left,
+            1 => Direction::Down,
+            2 => Direction::Up,
+            3 => Direction::Right,
+            value => {
+                return Err(crate::Error::UnexpectedResponse(format!(
+                    "unknown lighting direction {value}"
+                )))
+            }
+        };
+        let secondary = (get(5), get(6), get(7));
+        Ok(Self {
+            mode,
+            color: format!("{:02X}{:02X}{:02X}", get(1), get(2), get(3)),
+            secondary: (secondary != (0, 0, 0))
+                .then(|| format!("{:02X}{:02X}{:02X}", secondary.0, secondary.1, secondary.2)),
+            color_mode: get(8),
+            brightness: get(9).min(MAX_BRIGHTNESS),
+            speed: get(10).min(MAX_SPEED),
+            direction,
+            effect_mode_type: get(12),
+        })
     }
 }
 
@@ -295,6 +335,34 @@ mod tests {
         assert_eq!(p[11], 0);
         assert_eq!(p[14], 0xAA);
         assert_eq!(p[15], 0x55);
+    }
+
+    #[test]
+    fn lighting_payload_roundtrips_from_device() {
+        let cfg = LightingConfig {
+            mode: Mode::Ripples,
+            color: "66CCFF".into(),
+            secondary: Some("102030".into()),
+            color_mode: 0,
+            effect_mode_type: 2,
+            brightness: 4,
+            speed: 2,
+            direction: Direction::Right,
+        };
+        let parsed = LightingConfig::parse(&led_effect_payload(&cfg)).unwrap();
+        assert_eq!(parsed.mode, Mode::Ripples);
+        assert_eq!(parsed.color, "66CCFF");
+        assert_eq!(parsed.secondary.as_deref(), Some("102030"));
+        assert_eq!(parsed.brightness, 4);
+        assert_eq!(parsed.speed, 2);
+        assert_eq!(parsed.direction, Direction::Right);
+        assert_eq!(parsed.effect_mode_type, 2);
+    }
+
+    #[test]
+    fn rejects_short_lighting_payload() {
+        let error = LightingConfig::parse(&[Mode::Static as u8]).unwrap_err();
+        assert!(error.to_string().contains("expected 16"));
     }
 
     #[test]

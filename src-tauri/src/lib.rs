@@ -338,6 +338,16 @@ fn list_lighting_modes() -> Vec<LightingModeInfo> {
 }
 
 #[tauri::command]
+async fn get_lighting(state: State<'_, Arc<ConnState>>) -> Result<LightingConfig, AppError> {
+    state
+        .with(|slot| {
+            let conn = ensure_open(slot)?;
+            Ok(conn.get_lighting()?)
+        })
+        .await
+}
+
+#[tauri::command]
 async fn get_transport_kind(
     state: State<'_, Arc<ConnState>>,
 ) -> Result<ak820_protocol::TransportKind, AppError> {
@@ -1240,6 +1250,7 @@ pub fn run() {
             probe_device,
             close_device,
             list_lighting_modes,
+            get_lighting,
             get_transport_kind,
             apply_lighting,
             get_device_info,

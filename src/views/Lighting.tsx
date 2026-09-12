@@ -6,6 +6,7 @@ import { PageHeader } from "../components/Layout";
 import { CustomLightingPaint } from "./CustomLightingPaint";
 import { formatError } from "../errors";
 import { invokeDeviceWrite } from "../device-write";
+import { loadLastApplied, saveLastApplied } from "../device-state";
 
 const ALL_DIRECTIONS: Direction[] = ["left", "down", "up", "right"];
 const APPLY_DEBOUNCE_MS = 80;
@@ -23,10 +24,14 @@ export function Lighting() {
     speed: 3,
     direction: "left",
   });
+  const [currentCfg, setCurrentCfg] = useState<LightingConfig | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [autoApply, setAutoApply] = useState(false);
   const [lastApplied, setLastApplied] = useState<string | null>(null);
+  const [stateSource, setStateSource] = useState<"device" | "last-applied" | null>(null);
+  const [transport, setTransport] = useState<"online-output" | "legacy-feature" | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   // Audio-reactive lighting (macOS only) — currently **alpha**: the
   // wire-level cadence makes it flicker on real music. We gate it behind
@@ -56,10 +61,42 @@ export function Lighting() {
   const queued = useRef<LightingConfig | null>(null);
 
   useEffect(() => {
-    invoke<LightingModeInfo[]>("list_lighting_modes")
-      .then(setModes)
-      .catch((e) => setErr(formatError(e)));
+    void syncLighting();
   }, []);
+
+  async function syncLighting() {
+    setSyncing(true);
+    setErr(null);
+    try {
+      const listed = await invoke<LightingModeInfo[]>("list_lighting_modes");
+      setModes(listed);
+      const transport = await invoke<"online-output" | "legacy-feature">("get_transport_kind");
+      setTransport(transport);
+      if (transport === "online-output") {
+        const current = await invoke<LightingConfig>("get_lighting");
+        setCfg(current);
+        setCurrentCfg(current);
+        setStateSource("device");
+        setLastApplied(null);
+      } else {
+        const remembered = loadLastApplied<LightingConfig>("lighting");
+        if (remembered) {
+          setCfg(remembered.value);
+          setCurrentCfg(remembered.value);
+          setStateSource("last-applied");
+          setLastApplied(new Date(remembered.savedAt).toLocaleTimeString());
+        } else {
+          setCurrentCfg(null);
+          setStateSource(null);
+        }
+      }
+    } catch (e) {
+      setErr(formatError(e));
+      setModes((current) => current ?? []);
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   // Initial status + drift-detection poll. 3s is a compromise between
   // catching crashes promptly and not hammering the IPC channel.
@@ -145,7 +182,18 @@ export function Lighting() {
         { config: next },
         "Apply the selected lighting effect and colors.",
       );
-      setLastApplied(new Date().toLocaleTimeString());
+      if (transport === "online-output") {
+        const current = await invoke<LightingConfig>("get_lighting");
+        setCfg(current);
+        setCurrentCfg(current);
+        setLastApplied(null);
+        setStateSource("device");
+      } else {
+        const stored = saveLastApplied("lighting", next);
+        setCurrentCfg(next);
+        setLastApplied(new Date(stored.savedAt).toLocaleTimeString());
+        setStateSource("last-applied");
+      }
     } catch (e) {
       setErr(formatError(e));
     } finally {
@@ -196,6 +244,9 @@ export function Lighting() {
         action={
           isCustomMode ? null : (
             <div className="flex items-center gap-4">
+              <Button variant="ghost" onClick={() => void syncLighting()} disabled={busy || syncing}>
+                {syncing ? "Reading…" : "Reload"}
+              </Button>
               <Toggle checked={autoApply} onChange={setAutoApply}>
                 Auto-apply
               </Toggle>
@@ -216,26 +267,39 @@ export function Lighting() {
         <Card
           title="Mode"
           action={
-            lastApplied && !audioReactive ? (
-              <span className="text-xs text-fg-3">last applied {lastApplied}</span>
+            stateSource === "device" ? (
+              <Badge tone="good">Read from keyboard</Badge>
+            ) : lastApplied && !audioReactive ? (
+              <Badge tone="warn">Last applied {lastApplied}</Badge>
             ) : audioReactive ? (
               <span className="text-xs text-fg-3">paused while audio-reactive is on</span>
             ) : null
           }
         >
+          {stateSource === null && (
+            <p className="mb-4 rounded-md border border-warn/40 bg-warn-soft px-3 py-2 text-xs text-warn">
+              This firmware cannot report its current lighting. Select and Apply a configuration once so AJAZZ macOS can remember it.
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
             {modes.map((m) => {
               const isActive = m.name === cfg.mode;
+              const isCurrent = m.name === currentCfg?.mode;
               return (
                 <Button
                   key={m.name}
                   variant={isActive ? "ghost-active" : "ghost"}
                   size="sm"
                   onClick={() => update("mode", m.name)}
-                  className="justify-start"
+                  className={["justify-start", isCurrent ? "ring-1 ring-good/70" : ""].join(" ")}
                   title={m.description}
                 >
                   {m.label}
+                  {isCurrent && (
+                    <span className="ml-auto text-[9px] uppercase tracking-wider text-good">
+                      {stateSource === "device" ? "current" : "last applied"}
+                    </span>
+                  )}
                 </Button>
               );
             })}
@@ -254,6 +318,14 @@ export function Lighting() {
         <>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card title="Color">
+            {currentCfg && (
+              <div className="mb-4 flex items-center gap-2 text-xs text-fg-2">
+                <span className="h-3 w-3 rounded-full border border-line" style={{ backgroundColor: `#${currentCfg.color}` }} />
+                <span>
+                  {stateSource === "device" ? "Current" : "Last applied"} {currentCfg.color}
+                </span>
+              </div>
+            )}
             <div className="flex items-center gap-3">
               <input
                 type="color"

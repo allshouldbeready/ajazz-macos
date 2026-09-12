@@ -109,6 +109,8 @@ enum GameModeCmd {
 enum LightingCmd {
     /// Print the 20 supported lighting modes
     Modes,
+    /// Read the active lighting configuration (online-output firmware)
+    Get,
     /// Apply a lighting configuration
     Set {
         /// Mode name (see `lighting modes`)
@@ -165,6 +167,7 @@ fn main() -> Result<()> {
         Cmd::Tft(TftCmd::Cycle { delay }) => cmd_tft_cycle(cli.json, delay),
         Cmd::Tft(TftCmd::SelectIndex { index }) => cmd_tft_select_index(cli.json, index),
         Cmd::Lighting(LightingCmd::Modes) => cmd_lighting_modes(cli.json),
+        Cmd::Lighting(LightingCmd::Get) => cmd_lighting_get(cli.json),
         Cmd::Lighting(LightingCmd::Set {
             mode,
             color,
@@ -258,6 +261,21 @@ fn cmd_lighting_modes(json: bool) -> Result<()> {
             let d: Vec<&str> = dirs.iter().map(direction_name).collect();
             println!("  {:<13}  directions: {}", m.name(), d.join(", "));
         }
+    }
+    Ok(())
+}
+
+fn cmd_lighting_get(json: bool) -> Result<()> {
+    let conn = ak820_protocol::Connection::open_control()?;
+    let lighting = conn.get_lighting()?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&lighting)?);
+    } else {
+        println!("Mode:       {}", lighting.mode.label());
+        println!("Color:      #{}", lighting.color);
+        println!("Brightness: {}", lighting.brightness);
+        println!("Speed:      {}", lighting.speed);
+        println!("Direction:  {:?}", lighting.direction);
     }
     Ok(())
 }

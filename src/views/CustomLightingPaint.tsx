@@ -174,7 +174,19 @@ export function CustomLightingPaint({ inheritedConfig }: Props) {
   if (remote === null) {
     return (
       <Card title="Per-key RGB">
-        <p className="text-sm text-fg-2">Reading current LED state…</p>
+        <ErrorBanner>{err}</ErrorBanner>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-fg-2">
+            {err
+              ? "This firmware does not expose its per-key LED buffer, so AJAZZ macOS will not display a guessed color map."
+              : "Reading the current LED state from the keyboard…"}
+          </p>
+          {err && (
+            <Button size="sm" variant="ghost" onClick={() => void refresh()} disabled={busy}>
+              Retry
+            </Button>
+          )}
+        </div>
       </Card>
     );
   }
@@ -185,6 +197,7 @@ export function CustomLightingPaint({ inheritedConfig }: Props) {
       title="Click any key to paint it"
       action={
         <div className="flex items-center gap-2">
+          <Badge tone="good">Read from keyboard</Badge>
           {lastApplied && (
             <span className="text-xs text-fg-3">applied {lastApplied}</span>
           )}

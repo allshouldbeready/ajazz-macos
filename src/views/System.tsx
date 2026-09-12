@@ -4,6 +4,7 @@ import { Badge, BatteryBar, Button, Card, ErrorBanner, KVList, Mono, Toggle, for
 import { PageHeader } from "../components/Layout";
 import { invokeDeviceWrite } from "../device-write";
 import { formatError } from "../errors";
+import { loadLastApplied, saveLastApplied } from "../device-state";
 
 interface DeviceInfoReport {
   rom_size: number;
@@ -79,15 +80,19 @@ export function System() {
   const [draft, setDraft] = useState<GameMode | null>(null);
   const [presets, setPresets] = useState<SleepPreset[]>([]);
   const [transport, setTransport] = useState<"online-output" | "legacy-feature" | null>(null);
-  const [legacySettings, setLegacySettings] = useState<LegacySystemSettings>({
-    disable_windows_key: false,
-    disable_alt_f4: false,
-    disable_alt_tab: false,
-    fn_switch: false,
-    sleep_time: 1,
-    key_response_level: 1,
-  });
-  const [legacySaved, setLegacySaved] = useState(false);
+  const [legacySettings, setLegacySettings] = useState<LegacySystemSettings>(() =>
+    loadLastApplied<LegacySystemSettings>("system")?.value ?? {
+      disable_windows_key: false,
+      disable_alt_f4: false,
+      disable_alt_tab: false,
+      fn_switch: false,
+      sleep_time: 1,
+      key_response_level: 1,
+    },
+  );
+  const [legacySavedAt, setLegacySavedAt] = useState<string | null>(
+    () => loadLastApplied<LegacySystemSettings>("system")?.savedAt ?? null,
+  );
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [clockSync, setClockSync] = useState<TftDateTime | null>(null);
@@ -106,6 +111,11 @@ export function System() {
         setInfo(null);
         setGm(null);
         setDraft(null);
+        const remembered = loadLastApplied<LegacySystemSettings>("system");
+        if (remembered) {
+          setLegacySettings(remembered.value);
+          setLegacySavedAt(remembered.savedAt);
+        }
         return;
       }
       // Sequential because both reads hold the persistent HID mutex.
@@ -157,7 +167,7 @@ export function System() {
         { settings: legacySettings },
         "Save Windows-key, shortcut-lock, Fn, sleep, and key-response settings. This firmware cannot read the previous values back.",
       );
-      setLegacySaved(true);
+      setLegacySavedAt(saveLastApplied("system", legacySettings).savedAt);
     } catch (e) {
       setErr(formatError(e));
     } finally {
@@ -166,7 +176,7 @@ export function System() {
   }
 
   function updateLegacy<K extends keyof LegacySystemSettings>(key: K, value: LegacySystemSettings[K]) {
-    setLegacySaved(false);
+    setLegacySavedAt(null);
     setLegacySettings((current) => ({ ...current, [key]: value }));
   }
 
@@ -212,13 +222,14 @@ export function System() {
           <Card title="Connected with supplied-driver firmware" kicker="Compatibility mode">
             <p className="text-sm leading-relaxed text-fg-2">
               Lighting, TFT clock sync, and the official System settings block are available.
-              This firmware cannot report its current System values, so the controls below begin
-              with the vendor defaults and only change the keyboard when you press Save.
+              This firmware cannot report its current System values. The controls below show the
+              last settings applied by AJAZZ macOS when available; otherwise they begin with the
+              vendor defaults and only change the keyboard when you press Save.
             </p>
           </Card>
         )}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card title="Device">
+          <Card title="Device" action={info && <Badge tone="good">Read from keyboard</Badge>}>
             {info === null ? (
               <p className="text-sm text-fg-2">
                 {transport === "legacy-feature" ? "Detailed device reads are unavailable on this firmware." : "Reading…"}
@@ -262,9 +273,12 @@ export function System() {
           <Card
             title="Onboard system settings"
             action={draft && (
-              <Button variant="primary" size="sm" onClick={saveSystemSettings} disabled={busy || !hasChanges}>
-                {busy ? "Saving…" : "Save settings"}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Badge tone="good">Read from keyboard</Badge>
+                <Button variant="primary" size="sm" onClick={saveSystemSettings} disabled={busy || !hasChanges}>
+                  {busy ? "Saving…" : "Save settings"}
+                </Button>
+              </div>
             )}
           >
             {transport === "legacy-feature" ? (
@@ -293,7 +307,9 @@ export function System() {
                   <Button variant="primary" size="sm" onClick={saveLegacySystemSettings} disabled={busy}>
                     {busy ? "Saving…" : "Save settings"}
                   </Button>
-                  {legacySaved && <span className="text-xs text-good">Saved to keyboard</span>}
+                  {legacySavedAt && (
+                    <Badge tone="warn">Last applied {new Date(legacySavedAt).toLocaleString()}</Badge>
+                  )}
                 </div>
                 <p className="mt-3 text-xs text-fg-3">Write-only on this firmware; visual/behavioural confirmation is required.</p>
               </>

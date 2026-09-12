@@ -6,6 +6,7 @@ import { Badge, Button, Card, ErrorBanner } from "../components/ui";
 import { PageHeader } from "../components/Layout";
 import { invokeDeviceWrite } from "../device-write";
 import { formatError } from "../errors";
+import { loadLastApplied, saveLastApplied } from "../device-state";
 
 interface TftPresetInfo {
   id: string;
@@ -23,6 +24,12 @@ interface TftUploadProgress {
 
 type FitMode = "fill" | "contain" | "stretch";
 
+interface LastTftState {
+  kind: "preset" | "image" | "factory";
+  id?: string;
+  label: string;
+}
+
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms} ms`;
   return `${(ms / 1000).toFixed(1)} s`;
@@ -36,12 +43,19 @@ export function Tft() {
   const [err, setErr] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [fit, setFit] = useState<FitMode>("fill");
+  const [lastTft, setLastTft] = useState(() => loadLastApplied<LastTftState>("tft"));
 
   useEffect(() => {
     invoke<TftPresetInfo[]>("list_tft_presets")
       .then((list) => {
         setPresets(list);
-        if (list.length > 0) setSelected(list[0].id);
+        const remembered = loadLastApplied<LastTftState>("tft");
+        const rememberedPreset = remembered?.value.kind === "preset" ? remembered.value.id : null;
+        if (rememberedPreset && list.some((preset) => preset.id === rememberedPreset)) {
+          setSelected(rememberedPreset);
+        } else if (list.length > 0) {
+          setSelected(list[0].id);
+        }
       })
       .catch((error) => setErr(formatError(error)));
 
@@ -81,6 +95,11 @@ export function Tft() {
         { id: selected },
         `Upload ${preset?.display_name ?? "the selected diagnostic animation"} to the TFT.`,
       );
+      setLastTft(saveLastApplied("tft", {
+        kind: "preset",
+        id: selected,
+        label: preset?.display_name ?? selected,
+      } satisfies LastTftState));
       setInfo(
         preset
           ? `Uploaded ${preset.display_name} (${preset.frame_count} frame${preset.frame_count === 1 ? "" : "s"}, ${formatDuration(preset.total_ms)}). Verify it on the display.`
@@ -111,6 +130,10 @@ export function Tft() {
         `Convert and upload ${path.split("/").pop() ?? "the selected image"} to the TFT.`,
       );
       const name = path.split("/").pop() ?? path;
+      setLastTft(saveLastApplied("tft", {
+        kind: "image",
+        label: name,
+      } satisfies LastTftState));
       setInfo(`Uploaded ${name} using ${fit} fit. Verify it on the display.`);
     } catch (error) {
       setErr(formatError(error));
@@ -132,6 +155,10 @@ export function Tft() {
         undefined,
         "Restore the firmware-default TFT animation.",
       );
+      setLastTft(saveLastApplied("tft", {
+        kind: "factory",
+        label: "Factory default",
+      } satisfies LastTftState));
       setInfo("Restored the firmware-default animation.");
     } catch (error) {
       setErr(formatError(error));
@@ -155,6 +182,13 @@ export function Tft() {
       />
 
       <ErrorBanner>{err}</ErrorBanner>
+
+      {lastTft && (
+        <div className="mb-5 flex items-center gap-2 text-xs text-fg-2">
+          <Badge tone="warn">Last applied by AJAZZ macOS</Badge>
+          <span>{lastTft.value.label} · {new Date(lastTft.savedAt).toLocaleString()}</span>
+        </div>
+      )}
 
       <div className="grid gap-6">
         <Card
@@ -239,8 +273,13 @@ export function Tft() {
                 >
                   <span className="flex w-full items-center justify-between gap-3">
                     <span className="font-medium">{preset.display_name}</span>
-                    <span className="text-[10px] uppercase tracking-wider text-fg-3">
-                      {preset.frame_count} fr · {formatDuration(preset.total_ms)}
+                    <span className="flex items-center gap-2">
+                      {lastTft?.value.kind === "preset" && lastTft.value.id === preset.id && (
+                        <Badge tone="good">Last applied</Badge>
+                      )}
+                      <span className="text-[10px] uppercase tracking-wider text-fg-3">
+                        {preset.frame_count} fr · {formatDuration(preset.total_ms)}
+                      </span>
                     </span>
                   </span>
                   <span className="mt-1 text-xs text-fg-2">{preset.description}</span>

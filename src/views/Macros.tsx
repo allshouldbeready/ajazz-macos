@@ -279,6 +279,11 @@ export function Macros() {
     return JSON.stringify(stripNames(remote)) !== JSON.stringify(stripNames(draft));
   }, [remote, draft]);
 
+  let saveLabel = "Saved";
+  if (busy) saveLabel = "Writing…";
+  else if (remote === null) saveLabel = "Unavailable";
+  else if (dirty) saveLabel = "Save to device";
+
   async function save() {
     if (limits === null) return;
     // Validate per-macro byte limit on the client too — backend will reject
@@ -329,13 +334,17 @@ export function Macros() {
         description="Record key sequences once, replay them with a single key press. Up to 100 slots, 79 actions per macro."
         action={
           <div className="flex gap-2">
+            {remote && <Badge tone="good">Read from keyboard</Badge>}
+            <Button variant="ghost" size="sm" onClick={refresh} disabled={busy}>
+              {busy ? "Reading…" : "Reload"}
+            </Button>
             {dirty && (
               <Button variant="ghost" size="sm" onClick={discard} disabled={busy}>
                 Discard
               </Button>
             )}
             <Button variant="primary" size="sm" onClick={save} disabled={busy || !dirty}>
-              {busy ? "Writing…" : dirty ? "Save to device" : "Saved"}
+              {saveLabel}
             </Button>
           </div>
         }
@@ -346,12 +355,16 @@ export function Macros() {
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
         {/* ----- slot list ----- */}
         <Card title="Slots" action={
-          <Button size="sm" variant="ghost" onClick={addMacroSlot} disabled={busy || limits === null}>
+          <Button size="sm" variant="ghost" onClick={addMacroSlot} disabled={busy || limits === null || remote === null}>
             + New
           </Button>
         }>
           {remote === null ? (
-            <p className="text-sm text-fg-2">Reading…</p>
+            <p className="text-sm text-fg-2">
+              {err
+                ? "This firmware does not expose its onboard macro table. No guessed or empty table is shown."
+                : "Reading the onboard macro table…"}
+            </p>
           ) : draft.length === 0 ? (
             <p className="text-sm text-fg-2">No macros yet. Click <b>+ New</b> to create one.</p>
           ) : (
@@ -398,7 +411,11 @@ export function Macros() {
             )
           }
         >
-          {selected === null ? (
+          {remote === null ? (
+            <p className="text-sm text-fg-2">
+              Macro editing is available after the keyboard returns its current macro table.
+            </p>
+          ) : selected === null ? (
             <p className="text-sm text-fg-2">
               Select a macro on the left, or create a new one to start recording.
             </p>

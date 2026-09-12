@@ -584,6 +584,13 @@ impl Connection {
         self.set(cmd::SET_LED_EFFECT, &payload)
     }
 
+    /// Read the active global lighting configuration when the firmware exposes
+    /// the online-driver GET command. Supplied-driver firmware is write-only.
+    pub fn get_lighting(&self) -> Result<LightingConfig> {
+        let payload = self.get(cmd::GET_LED_EFFECT, lighting::LED_EFFECT_LEN)?;
+        LightingConfig::parse(&payload)
+    }
+
     /// Read every defined macro from the device.
     ///
     /// Walks the 400-byte index page, then for each non-empty slot pulls the

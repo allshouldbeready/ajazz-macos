@@ -270,6 +270,14 @@ export function Keymap() {
   }, [remote, draft]);
 
   const isDirty = dirty.size > 0;
+  let keymapTitle = "Reading from keyboard…";
+  if (!draft && err) {
+    keymapTitle = "Current keymap unavailable";
+  } else if (draft && isDirty) {
+    keymapTitle = `${dirty.size} unsaved change${dirty.size === 1 ? "" : "s"} — click Save to commit`;
+  } else if (draft) {
+    keymapTitle = remapCountLabel(draft, layoutRows);
+  }
 
   return (
     <>
@@ -282,6 +290,7 @@ export function Keymap() {
         }
         action={
           <div className="flex items-center gap-2">
+            {remote && <Badge tone="good">Read from keyboard</Badge>}
             <LayerSwitch value={layer} onChange={(l) => { setLayer(l); setSelectedSlot(null); }} />
             <Button onClick={() => load(layer)} disabled={busy}>
               {busy ? "Reading…" : "Reload"}
@@ -289,7 +298,7 @@ export function Keymap() {
             <Button
               variant="ghost"
               onClick={resetToFactory}
-              disabled={busy}
+              disabled={busy || !draft}
               title="Stage the firmware's factory-default keymap for the active layer. Review, then Save to commit."
             >
               Factory default
@@ -308,26 +317,32 @@ export function Keymap() {
 
       <Card
         kicker={layer === "base" ? "Base layer" : "Fn layer"}
-        title={
-          !draft
-            ? "Reading from keyboard…"
-            : isDirty
-              ? `${dirty.size} unsaved change${dirty.size === 1 ? "" : "s"} — click Save to commit`
-              : remapCountLabel(draft, layoutRows)
-        }
+        title={keymapTitle}
       >
-        <KeyboardSurface
-          layout={layoutRows}
-          km={draft}
-          dirty={dirty}
-          selectedSlot={selectedSlot}
-          automations={automations}
-          onSelect={setSelectedSlot}
-        />
+        {draft ? (
+          <KeyboardSurface
+            layout={layoutRows}
+            km={draft}
+            dirty={dirty}
+            selectedSlot={selectedSlot}
+            automations={automations}
+            onSelect={setSelectedSlot}
+          />
+        ) : (
+          <p className="text-sm text-fg-2">
+            {err
+              ? "This firmware does not expose its keymap, so AJAZZ macOS will not display guessed assignments."
+              : "Reading the active assignments from the keyboard…"}
+          </p>
+        )}
       </Card>
 
       <Card title="Action picker" className="mt-6">
-        {selectedSlot === null ? (
+        {!draft ? (
+          <p className="text-sm text-fg-2">
+            Key remapping is available after the keyboard returns its current keymap.
+          </p>
+        ) : selectedSlot === null ? (
           <p className="text-sm text-fg-2">
             Click a key in the layout above to pick a new action for it.
           </p>

@@ -40,6 +40,8 @@ Experimental upstream features are intentionally hidden from the first parity
 milestone. They may return later after the official feature surface is verified.
 The official controls and installer-derived effect catalogue are documented in
 [RGB modes](docs/RGB_MODES.md).
+How each page distinguishes device read-back from write-only remembered values
+is documented in [current-state handling](docs/CURRENT_STATE.md).
 
 ## Build
 
