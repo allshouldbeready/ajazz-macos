@@ -1,0 +1,22 @@
+# Windows Driver Parity
+
+The supplied ANSI installer is the reference for the first product milestone.
+The proprietary installer and extracted files are intentionally not included.
+
+| Feature family | Implementation | Automated verification | Hardware verification |
+|---|---|---|---|
+| Wired discovery and device information | Implemented | Rust tests and CLI probe | Pending ANSI wired device |
+| Bluetooth-only guidance | Implemented | Frontend build | Pending Bluetooth-to-wired transition |
+| Clock, sleep, and game settings | Implemented | Clock golden packet and encoder/parser tests | Pending ANSI wired device |
+| 20 global RGB effects | Implemented | Golden payload tests | Pending ANSI wired device |
+| Per-key RGB | Implemented | Encode/decode tests | Pending ANSI wired device |
+| Base and Fn keymaps | Implemented | Round-trip codec tests | Pending ANSI wired device |
+| Macros | Implemented | Bounds and codec tests | Pending ANSI wired device |
+| TFT built-in/default selection | Implemented | Command tests | Pending visible confirmation |
+| PNG/JPEG TFT upload | Implemented | Decode/fit/RGB565 tests | Pending visible confirmation |
+| Animated GIF TFT upload | Implemented | Decode/frame-limit tests | Pending visible confirmation |
+| TFT progress and cancellation | Implemented | State and cancellation tests | Pending interrupted upload test |
+
+Full parity must not be claimed until still-image and animated-GIF uploads are
+visibly confirmed on the physical display and the original keyboard state can
+be restored afterward.
