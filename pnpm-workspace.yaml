@@ -1,2 +1,10 @@
 allowBuilds:
   esbuild: true
+
+# Security floors for transitive build-tool dependencies. Keep these until the
+# direct packages naturally resolve to equal or newer versions.
+overrides:
+  "@babel/core": 7.29.6
+  baseline-browser-mapping: 2.11.0
+  browserslist: 4.28.7
+  postcss-selector-parser: 6.1.3
