@@ -23,7 +23,7 @@ profile sync.
 
 | Field | Value | Source |
 |---|---|---|
-| Product | AK820 Pro (test unit: ISO-DE, firmware **1.07**) | device GET_DEVICE_INFO |
+| Product | AK820 Pro (current test unit: ANSI, bcdDevice **0x0114**) | live HID enumeration |
 | MCU | **HFD80CP100** (Sonix SN32F299 clone), 6×15 key matrix | fpb/ajazz-ak820-pro |
 | Wireless | WCH **CH582F** (BLE 5.1 + 2.4 GHz, I²C-attached) | same |
 | Flash | PY25Q128HA 16 MB SPI | same |
@@ -33,21 +33,21 @@ profile sync.
 | Macro space | **3072 bytes** (device reports), 512 hardcoded fallback in AJAZZ tool | GET_DEVICE_INFO |
 | TFT capacity | 255 frames | GET_DEVICE_INFO |
 
-### HID interface that actually accepts our writes
+### HID transports
 
-macOS exposes the AK820 Pro as **9 HID endpoints**. The right one for
-control commands is:
+macOS exposes the current ANSI AK820 Pro as **9 HID endpoints**. It uses:
 
-- **Interface**: `2` (Sonix `iface` numbering on macOS)
-- **Usage page**: **`0xFF68`** (and only that — `0xFF67` opens fine but
-  silently drops writes)
-- **Path**: e.g. `DevSrvsID:4295011008`
+- control: interface 3, usage page **`0xFF13`**, 64-byte unnumbered feature report
+- TFT stream: interface 2, usage page **`0xFF68`**, 4096-byte output report
 
-Detection rule (see `crates/ak820-protocol/src/device.rs` and
-`src-tauri/src/lib.rs`):
+This differs from the previously tested 1.07 device, which uses online-driver
+framing on `0xFF68` and exposes `0xFF67` for TFT. `open_control()` detects the
+collection pattern and selects `LegacyFeature` or `OnlineOutput`; do not force
+one interface for every firmware.
 
 ```rust
-candidates.iter().find(|d| d.usage_page == 0xFF68)
+candidates.iter().any(|d| d.usage_page == 0xFF13)
+    && !candidates.iter().any(|d| d.usage_page == 0xFF67)
 ```
 
 ---
@@ -56,14 +56,12 @@ candidates.iter().find(|d| d.usage_page == 0xFF68)
 
 ### Source of truth
 
-The official AJAZZ online driver at <https://ajazz.driveall.cn>. We
-saved its main module to `docs/reverse-engineering/online-driver/default-protocol.js`.
-
-**Do not trust** the upstream Linux ports
-(`gohv/EPOMAKER-Ajazz-AK820-Pro`, `TaxMachine/ajazz-keyboard-software-linux`).
-They use a completely different framing (Feature Reports + START/FINISH
-wrapper + wrong report ID) that the firmware silently ignores on macOS.
-A full diff is in `docs/PROTOCOL.md`.
+There are two sources of truth: the official online driver for its firmware
+family, and the locally supplied Windows installer for the current ANSI unit.
+The latter confirms the feature-report `START`/preamble/data/`SAVE`/`FINISH`
+family. The Linux ports incorrectly exposed `0x04` as the HID report ID; on
+macOS an unnumbered report needs a leading API byte `0x00`, followed by the
+64-byte vendor payload beginning with `0x04`. See `docs/PROTOCOL.md`.
 
 ### Outgoing frame (64 bytes via `device.write` / WebHID `sendReport(0, …)`)
 

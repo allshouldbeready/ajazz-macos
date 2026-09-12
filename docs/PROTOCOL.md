@@ -4,20 +4,28 @@ Living document. Every decoded command lands here with byte layout, semantics, a
 
 ## Transport
 
-- **USB-HID feature reports**, control interface = 3.
+Two firmware families are now confirmed. Selection must be based on the HID
+collections rather than the USB product ID, which is shared.
+
+- The supplied ANSI driver and the connected bcdDevice `0x0114` keyboard use
+  **feature reports** on interface 3 / usage page `0xFF13` for control and a
+  4096-byte output report on interface 2 / usage page `0xFF68` for TFT data.
+- The previously tested firmware 1.07 uses the AJAZZ online-driver framing on
+  `0xFF68`, with a separate `0xFF67` TFT collection.
 - **VID `0x0C45`** (Sonix Technology Co. Ltd.) — confirmed against the live device on macOS 2026-05-13. Earlier upstream notes that listed `0x8009` as the VID had it swapped with the PID.
 - Known PIDs:
   - `0x8009` — wired and 2.4 GHz dongle modes (shares HID stack)
   - `0xFEFE` — Bluetooth 5.1 mode (separate HID stack, surfaces only when the BT side is paired and active)
   - `0x7140` — ISP/bootloader mode, deliberately excluded from discovery and all operations
 - Live enumeration on a wired AK820 Pro returns **9 HID interfaces**: 6× iface 1 (standard keyboard / consumer / system-control endpoints), 1× iface 2, 1× iface 3 (control), 1× iface 0.
-- Report length: 64 bytes payload + 1 byte report ID (to be re-verified against captures).
+- Legacy control calls pass 65 bytes to hidapi: a leading zero required by the
+  API for an unnumbered report, followed by the driver's 64-byte payload.
 
 ## Known feature families
 
 | Family | Phase | Status | Source |
 |---|---|---|---|
-| Lighting (20 modes) | 1 | **Decoded** | online-driver (gohv was wrong on macOS) |
+| Lighting (20 modes) | 1 | **Decoded; legacy write hardware-tested** | supplied installer + online driver |
 | Sleep timer | 2 | Partially decoded | gohv (likely also wrong layout) |
 | Clock sync | 2 | **Decoded** | official online driver (`setTftDateTime`) |
 | Battery status | 2 | **Decoded** (read) | online-driver (GET_DEVICE_INFO) |
@@ -27,22 +35,32 @@ Living document. Every decoded command lands here with byte layout, semantics, a
 | TFT display upload | 5 | **Decoded** | online-driver (SET_TFT_USER_ANIMATION) |
 | Now-playing / audio-reactive | 6 | Not applicable (host-side) | — |
 
-## Where the upstream Linux ports went wrong
+## Legacy feature-report transport (supplied ANSI installer)
 
-Both `gohv/EPOMAKER-Ajazz-AK820-Pro` and `TaxMachine/ajazz-keyboard-software-linux` implement a fundamentally different wire format than the official AJAZZ online driver — and the upstream format is silently ignored by firmware 1.07 on macOS. Likely-wrong assumptions:
+The older Linux projects had the right vendor payload family but treated
+`0x04` as the HID report ID. The connected macOS collection has no report IDs;
+hidapi therefore needs an extra leading zero. On the wire, `0x04` remains byte
+zero of the 64-byte vendor payload.
 
-| Assumption | Reality |
-|---|---|
-| Feature reports (`HID_SET_REPORT`) | Output reports (`device.sendReport(0, …)`) |
-| `0x04` control-report ID | Report ID 0 |
-| `0x18` START + `0x13` MODE + `0xF0` FINISH framing | Single packet, header magic `0xAA`, command in byte 1 |
-| `CMD_MODE = 0x13` | `0x13` is **GET_LED_EFFECT** (read), write is **`SET_LED_EFFECT = 0x23`** |
-| 64-byte mode-data payload, mode at byte 0 | 16-byte payload inside an outer 64-byte frame |
-| `[0x55, 0xAA]` delimiter at bytes 14–15 | `[0xAA, 0x55]` at payload bytes 14–15 (inverted) |
-| `rainbow: bool` at payload byte 8 | `colorMode: u8` (multi-state, not boolean) |
-| No driverSetting / secondaryRGB / effectModeType | These exist and `driverSetting` is hardcoded to `0xFF` |
+Lighting writes use this complete transaction:
 
-## Wire transport (official online driver, confirmed against AJAZZ firmware 1.07)
+```text
+START  [04 18 ... byte8=01]  -> response
+MODE   [04 13 ... byte8=01]  -> response
+DATA   [mode R G B ... color brightness speed direction .. 55 AA]
+SAVE   [04 02 ...]
+FINISH [04 F0 ...]
+```
+
+The supplied application waits for START, MODE, and SAVE responses but not for
+DATA or FINISH. The macOS implementation always attempts FINISH after an error
+so a failed operation does not strand the device transaction state.
+
+On 2026-09-12, the exact 65-byte framing and full lighting transaction were
+accepted by the connected ANSI keyboard. The online-driver `0xAA` frames timed
+out on both `0xFF68` and `0xFF13` on this firmware.
+
+## Online-driver transport (confirmed against AJAZZ firmware 1.07)
 
 - **HID output reports** on a vendor-specific control endpoint (normally usage page `0xFF68`); the large TFT stream uses a separate `0xFF67` endpoint. Both use report ID `0`.
 - Each outgoing packet is exactly `reportCount` bytes (64 for AK820 Pro). Multi-chunk transfers segment the payload across packets.

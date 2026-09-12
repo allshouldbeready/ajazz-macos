@@ -7,9 +7,12 @@
 pub mod commands;
 pub mod device;
 pub mod error;
+pub mod legacy_protocol;
 pub mod protocol;
 
-pub use device::{enumerate, probe_interfaces, Connection, DeviceInfo, InterfaceProbe};
+pub use device::{
+    enumerate, probe_interfaces, Connection, DeviceInfo, InterfaceProbe, TransportKind,
+};
 pub use error::{Error, Result};
 pub use protocol::{Frame, ReportId};
 

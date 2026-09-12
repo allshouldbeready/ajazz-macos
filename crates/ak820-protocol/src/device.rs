@@ -11,6 +11,10 @@ use crate::commands::macros::{
 use crate::commands::per_key_rgb::{CustomLedMap, CUSTOM_LED_BYTES};
 use crate::commands::system::{DeviceInfoReport, GameMode};
 use crate::commands::tft::{build_tft_header, TftAnimation};
+use crate::legacy_protocol::{
+    clock_data, clock_preamble, feature_report, finish_payload, lighting_data, lighting_preamble,
+    save_payload, start_payload, FEATURE_REPORT_LEN,
+};
 use crate::protocol::{
     build_frame, cmd, HEADER_LEN, MAGIC_INCOMING, PACKET_LEN, PAYLOAD_PER_PACKET, REPORT_ID,
 };
@@ -199,6 +203,14 @@ pub fn enumerate() -> Result<Vec<DeviceInfo>> {
 pub struct Connection {
     device: HidDevice,
     info: DeviceInfo,
+    transport: TransportKind,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum TransportKind {
+    OnlineOutput,
+    LegacyFeature,
 }
 
 impl Connection {
@@ -238,6 +250,19 @@ impl Connection {
             interface: CONTROL_INTERFACE,
         })?;
 
+        let protocol_override = std::env::var("AK820_PROTOCOL").ok();
+        let has_legacy_control = candidates
+            .iter()
+            .any(|candidate| candidate.usage_page == 0xFF13);
+        let has_online_tft = candidates
+            .iter()
+            .any(|candidate| candidate.usage_page == 0xFF67);
+        if protocol_override.as_deref() == Some("legacy")
+            || (protocol_override.is_none() && has_legacy_control && !has_online_tft)
+        {
+            return Self::open_legacy_from_candidates(&candidates);
+        }
+
         let api = HidApi::new()?;
         let device = api.open_path(&std::ffi::CString::new(control.path.clone()).unwrap())?;
         device.set_blocking_mode(true)?;
@@ -250,11 +275,40 @@ impl Connection {
         Ok(Self {
             device,
             info: control,
+            transport: TransportKind::OnlineOutput,
+        })
+    }
+
+    fn open_legacy_from_candidates(candidates: &[DeviceInfo]) -> Result<Self> {
+        const LEGACY_USAGE_PAGE: u16 = 0xFF13;
+        let info = candidates
+            .iter()
+            .find(|candidate| candidate.usage_page == LEGACY_USAGE_PAGE)
+            .cloned()
+            .ok_or(Error::DeviceNotFound {
+                vid: VENDOR_ID,
+                interface: CONTROL_INTERFACE,
+            })?;
+        let api = HidApi::new()?;
+        let device = api.open_path(&std::ffi::CString::new(info.path.clone()).unwrap())?;
+        info!(
+            interface = info.interface,
+            usage_page = format!("0x{:04x}", info.usage_page),
+            "opened supplied-driver feature transport"
+        );
+        Ok(Self {
+            device,
+            info,
+            transport: TransportKind::LegacyFeature,
         })
     }
 
     pub fn info(&self) -> &DeviceInfo {
         &self.info
+    }
+
+    pub fn transport(&self) -> TransportKind {
+        self.transport
     }
 
     pub fn raw(&self) -> &HidDevice {
@@ -308,6 +362,11 @@ impl Connection {
     /// Run a single-chunk GET transaction: send request header, await response,
     /// return up to `content_size` payload bytes from the first response packet.
     fn get(&self, cmd_byte: u8, content_size: usize) -> Result<Vec<u8>> {
+        if self.transport == TransportKind::LegacyFeature {
+            return Err(Error::NotImplemented(
+                "this firmware does not expose official online-driver reads",
+            ));
+        }
         if content_size > PAYLOAD_PER_PACKET {
             // Multi-chunk responses are needed for things like custom-LED (512 bytes)
             // — implement when we reach Phase 4/5. For now we only need single packets.
@@ -322,6 +381,11 @@ impl Connection {
 
     /// Run a single-chunk SET transaction.
     fn set(&self, cmd_byte: u8, payload: &[u8]) -> Result<()> {
+        if self.transport == TransportKind::LegacyFeature {
+            return Err(Error::NotImplemented(
+                "command is not yet mapped for supplied-driver feature transport",
+            ));
+        }
         if payload.len() > PAYLOAD_PER_PACKET {
             return Err(Error::NotImplemented("multi-chunk SET not yet supported"));
         }
@@ -477,6 +541,20 @@ impl Connection {
 
     /// Apply a complete lighting configuration.
     pub fn set_lighting(&self, cfg: &LightingConfig) -> Result<()> {
+        if self.transport == TransportKind::LegacyFeature {
+            let (red, green, blue) = cfg.rgb();
+            let data = lighting_data(
+                cfg.mode as u8,
+                red,
+                green,
+                blue,
+                cfg.color_mode,
+                cfg.brightness,
+                cfg.speed,
+                cfg.direction as u8,
+            );
+            return self.set_legacy_transaction(&lighting_preamble(), &data);
+        }
         let payload = lighting::led_effect_payload(cfg);
         let (r, g, b) = cfg.rgb();
         info!(
@@ -566,6 +644,19 @@ impl Connection {
 
     /// Synchronise the TFT's onboard clock with the supplied host time.
     pub fn set_tft_datetime(&self, datetime: TftDateTime) -> Result<()> {
+        if self.transport == TransportKind::LegacyFeature {
+            datetime.encode()?;
+            let data = clock_data(
+                datetime.year,
+                datetime.month,
+                datetime.day,
+                datetime.hour,
+                datetime.minute,
+                datetime.second,
+                datetime.weekday,
+            );
+            return self.set_legacy_clock(&data);
+        }
         let payload = datetime.encode()?;
         info!(?datetime, "SET_TFT_DATE_TIME");
         self.set(cmd::SET_TEMPORARY_COMMAND_DATA, &payload)
@@ -604,7 +695,11 @@ impl Connection {
             usage_page = format!("0x{:04x}", pick.usage_page),
             "opened TFT upload interface"
         );
-        Ok(Self { device, info: pick })
+        Ok(Self {
+            device,
+            info: pick,
+            transport: TransportKind::OnlineOutput,
+        })
     }
 
     /// Upload a TFT animation as a single chunked transaction. Re-uses our
@@ -728,6 +823,82 @@ impl Connection {
         );
         self.set(cmd::SET_GAME_MODE, &payload)
     }
+
+    fn set_legacy_transaction(
+        &self,
+        preamble: &[u8; crate::legacy_protocol::PAYLOAD_LEN],
+        data: &[u8; crate::legacy_protocol::PAYLOAD_LEN],
+    ) -> Result<()> {
+        let result = (|| {
+            debug!("legacy transaction: START");
+            legacy_feature_exchange(&self.device, &start_payload())?;
+            legacy_pause();
+            debug!(command = preamble[1], "legacy transaction: preamble");
+            legacy_feature_exchange(&self.device, preamble)?;
+            legacy_pause();
+            debug!("legacy transaction: data");
+            legacy_feature_send(&self.device, data)?;
+            legacy_pause();
+            debug!("legacy transaction: SAVE");
+            legacy_feature_exchange(&self.device, &save_payload())?;
+            Ok(())
+        })();
+
+        debug!("legacy transaction: FINISH");
+        let finish_result = legacy_feature_send(&self.device, &finish_payload());
+        result.and(finish_result.map(|_| ()))
+    }
+
+    fn set_legacy_clock(&self, data: &[u8; crate::legacy_protocol::PAYLOAD_LEN]) -> Result<()> {
+        let result = (|| {
+            debug!("legacy clock: START");
+            legacy_feature_exchange(&self.device, &start_payload())?;
+            legacy_pause();
+            debug!("legacy clock: preamble");
+            legacy_feature_exchange(&self.device, &clock_preamble())?;
+            legacy_pause();
+            debug!("legacy clock: data");
+            legacy_feature_exchange(&self.device, data)?;
+            legacy_pause();
+            debug!("legacy clock: SAVE");
+            legacy_feature_exchange(&self.device, &save_payload())?;
+            Ok(())
+        })();
+
+        if result.is_err() {
+            debug!("legacy clock: cleanup FINISH");
+            let _ = legacy_feature_send(&self.device, &finish_payload());
+        }
+        result
+    }
+}
+
+fn legacy_pause() {
+    std::thread::sleep(std::time::Duration::from_millis(10));
+}
+
+fn legacy_feature_send(
+    device: &HidDevice,
+    payload: &[u8; crate::legacy_protocol::PAYLOAD_LEN],
+) -> Result<usize> {
+    let report = feature_report(payload);
+    device.send_feature_report(&report)?;
+    Ok(report.len())
+}
+
+fn legacy_feature_read(device: &HidDevice) -> Result<Vec<u8>> {
+    let mut response = [0u8; FEATURE_REPORT_LEN];
+    response[0] = 0;
+    let size = device.get_feature_report(&mut response)?;
+    Ok(response[..size].to_vec())
+}
+
+fn legacy_feature_exchange(
+    device: &HidDevice,
+    payload: &[u8; crate::legacy_protocol::PAYLOAD_LEN],
+) -> Result<Vec<u8>> {
+    legacy_feature_send(device, payload)?;
+    legacy_feature_read(device)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
