@@ -199,7 +199,7 @@ export function Tft() {
   return (
     <>
       <PageHeader
-        title="TFT Display"
+        title="Display"
         description="Upload a still image or animated GIF, run a diagnostic pattern, or restore the factory animation."
         action={
           <Button variant="ghost" onClick={() => void factoryDefault()} disabled={busy}>
@@ -260,7 +260,7 @@ export function Tft() {
           {busy && progress && (
             <div className="mt-5 border-t border-line/60 pt-4">
               <div className="mb-2 flex items-center justify-between text-xs text-fg-2">
-                <span>Sending HID chunks</span>
+                <span>Transferring to keyboard</span>
                 <span className="font-mono">
                   {progress.completed_chunks}/{progress.total_chunks} · {progress.percent}%
                 </span>

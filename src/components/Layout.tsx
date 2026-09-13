@@ -4,7 +4,7 @@ import { APP_CREDIT, APP_HOMEPAGE } from "../version";
 import { LAYOUTS } from "../data/layouts";
 import { useLayout } from "../data/layouts/use-layout";
 import type { LayoutId } from "../data/layouts";
-import { Moon, Sun } from "lucide-react";
+import { Moon, PanelLeftClose, PanelLeftOpen, Sun } from "lucide-react";
 import { getTheme, toggleTheme, type Theme } from "../theme";
 
 export interface NavItem<T extends string> {
@@ -51,23 +51,49 @@ export function Layout<T extends string>({
 }>) {
   const theme = useTheme();
   const { layoutId, layout, setLayoutId } = useLayout();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => window.localStorage.getItem("ak820:sidebar-collapsed") === "true",
+  );
+
+  function toggleSidebar() {
+    setSidebarCollapsed((current) => {
+      const next = !current;
+      window.localStorage.setItem("ak820:sidebar-collapsed", String(next));
+      return next;
+    });
+  }
+
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       {/* Sidebar */}
-      <aside className="flex w-60 shrink-0 flex-col border-r border-line bg-surface-surface/80">
+      <aside
+        className="flex shrink-0 flex-col border-r border-line bg-surface-surface/80 transition-[width] duration-200 ease-out"
+        style={{ width: sidebarCollapsed ? 72 : 240 }}
+      >
         {/* Brand */}
-        <div className="px-5 pt-5 pb-4">
-          <div className="flex items-center gap-2.5">
+        <div className={sidebarCollapsed ? "px-4 pb-5 pt-5" : "px-5 pb-5 pt-5"}>
+          <div className={sidebarCollapsed ? "flex flex-col items-center gap-3" : "flex items-center gap-2.5"}>
             <Logo />
-            <div className="leading-none">
+            <div className={sidebarCollapsed ? "hidden" : "min-w-0 flex-1 leading-none"}>
               <div className="text-sm font-semibold tracking-tight text-fg-0">{brand}</div>
               {phaseLabel && <div className="mt-1 kicker">{phaseLabel}</div>}
             </div>
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-fg-3 transition hover:bg-surface-raised hover:text-fg-0"
+              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {sidebarCollapsed
+                ? <PanelLeftOpen size={15} strokeWidth={1.8} />
+                : <PanelLeftClose size={15} strokeWidth={1.8} />}
+            </button>
           </div>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-2 pb-3">
+        <nav className={sidebarCollapsed ? "flex-1 px-3 pb-3" : "flex-1 px-2 pb-3"}>
           <ul className="space-y-px">
             {nav.map((item) => {
               const isActive = item.id === active;
@@ -76,13 +102,17 @@ export function Layout<T extends string>({
                   <button
                     onClick={() => !item.comingSoon && onSelect(item.id)}
                     disabled={item.comingSoon}
+                    aria-current={isActive ? "page" : undefined}
                     className={[
-                      "group relative flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-all duration-150 ease-out",
+                      "group relative flex w-full items-center rounded-md py-2.5 text-left text-sm transition-all duration-150 ease-out",
+                      sidebarCollapsed ? "justify-center px-0" : "gap-3 px-3",
                       isActive
                         ? "bg-surface-raised text-fg-0"
                         : "text-fg-2 hover:bg-surface-elevated/60 hover:text-fg-0",
                       item.comingSoon ? "cursor-not-allowed opacity-40 hover:bg-transparent hover:text-fg-2" : "",
                     ].join(" ")}
+                    title={sidebarCollapsed ? item.label : undefined}
+                    aria-label={sidebarCollapsed ? item.label : undefined}
                   >
                     {/* Active rail */}
                     {isActive && (
@@ -96,8 +126,8 @@ export function Layout<T extends string>({
                     >
                       {item.icon}
                     </span>
-                    <span className="flex-1">{item.label}</span>
-                    {item.comingSoon && (
+                    {!sidebarCollapsed && <span className="flex-1">{item.label}</span>}
+                    {!sidebarCollapsed && item.comingSoon && (
                       <span className="rounded-sm bg-surface-base px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-fg-3">
                         soon
                       </span>
@@ -110,17 +140,17 @@ export function Layout<T extends string>({
         </nav>
 
         {/* Footer status */}
-        <footer className="border-t border-line px-4 py-3.5">
-          <div className="mb-2 flex items-center justify-between gap-2">
+        <footer className={sidebarCollapsed ? "border-t border-line px-3 py-3.5" : "border-t border-line px-4 py-3.5"}>
+          <div className={sidebarCollapsed ? "flex justify-center" : "mb-2 flex items-center justify-between gap-2"}>
             <div className="flex min-w-0 items-center gap-2">
               <StatusDot connected={!!connection?.connected} />
-              <span className="truncate text-xs text-fg-1">
+              <span className={sidebarCollapsed ? "hidden" : "truncate text-xs text-fg-1"}>
                 {connection?.connected
                   ? prettyProduct(connection.product)
                   : "Disconnected"}
               </span>
             </div>
-            {!connection?.connected && onReconnect && (
+            {!sidebarCollapsed && !connection?.connected && onReconnect && (
               <button
                 onClick={onReconnect}
                 className="rounded-sm border border-line bg-surface-elevated/40 px-1.5 py-0.5 text-2xs font-medium text-fg-1 transition hover:border-accent-500/60 hover:bg-accent-glow hover:text-fg-0"
@@ -129,15 +159,15 @@ export function Layout<T extends string>({
               </button>
             )}
           </div>
-          {connection?.connected && battery && (
+          {!sidebarCollapsed && connection?.connected && battery && (
             <BatteryBar level={battery.level} charging={battery.charging} compact />
           )}
-          <div className="mt-3 flex items-center justify-between gap-2 border-t border-line/60 pt-2.5">
+          <div className={sidebarCollapsed ? "mt-3 flex flex-col items-center gap-2 border-t border-line/60 pt-3" : "mt-3 flex items-center justify-between gap-2 border-t border-line/60 pt-2.5"}>
             <a
               href={APP_HOMEPAGE}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[10px] leading-tight text-fg-3 transition-colors hover:text-fg-1"
+              className={sidebarCollapsed ? "hidden" : "text-[10px] leading-tight text-fg-3 transition-colors hover:text-fg-1"}
               title="Open the project on GitHub"
             >
               {APP_CREDIT}
@@ -153,7 +183,7 @@ export function Layout<T extends string>({
                   ? <Sun size={12} strokeWidth={1.8} />
                   : <Moon size={12} strokeWidth={1.8} />}
               </button>
-              <select
+              {!sidebarCollapsed && <select
                 value={layoutId}
                 onChange={(e) => setLayoutId(e.target.value as LayoutId)}
                 title={`Active physical layout: ${layout.displayName}. ${layout.description}`}
@@ -167,7 +197,7 @@ export function Layout<T extends string>({
                     </option>
                   ) : null,
                 )}
-              </select>
+              </select>}
             </div>
           </div>
         </footer>
@@ -177,7 +207,7 @@ export function Layout<T extends string>({
       <main className="relative flex-1 overflow-y-auto">
         <div
           className={[
-            "mx-auto px-10 pb-16 pt-10",
+            "mx-auto px-8 pb-16 pt-9 lg:px-10",
             wide ? "max-w-none" : "max-w-[960px]",
           ].join(" ")}
         >
@@ -202,10 +232,10 @@ export function PageHeader({
   kicker?: string;
 }) {
   return (
-    <header className="mb-8 flex items-end justify-between gap-6">
+    <header className="mb-7 flex items-end justify-between gap-6">
       <div>
         {kicker && <p className="kicker mb-2">{kicker}</p>}
-        <h1 className="text-3xl font-semibold tracking-tight text-fg-0">{title}</h1>
+        <h1 className="text-[28px] font-semibold tracking-[-0.025em] text-fg-0">{title}</h1>
         {description && (
           <p className="mt-2 max-w-prose text-sm text-fg-2">{description}</p>
         )}

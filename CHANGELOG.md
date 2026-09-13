@@ -33,6 +33,21 @@ Planned for 0.8.x
 - Browser-tab media support in Now-Playing (currently only Music.app + Spotify desktop) — **declined for now** on privacy grounds; revisit if a non-invasive surface emerges.
 - JIS physical layout once hardware is available for verification.
 
+## [0.7.3-beta] — 2026-09-13
+
+### Changed
+
+- Reworked Connectivity into a plain-language **My Keyboard** overview with a
+  single connection check, clearer wired/Bluetooth guidance, and a prominent
+  ready/offline state.
+- Moved raw interface, usage-page, and device-ID diagnostics into a collapsed
+  **Advanced connection details** disclosure so routine controls are no longer
+  presented like a developer console.
+- Added a persistent collapsible sidebar with accessible labels and tooltips,
+  and renamed **TFT Display** to **Display** throughout the primary navigation.
+- Simplified technical wording across My Keyboard, System, and Display while
+  preserving precise diagnostics when users need to report a problem.
+
 ## [0.7.2-beta] — 2026-09-13
 
 ### Fixed

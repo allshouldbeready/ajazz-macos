@@ -233,7 +233,7 @@ export function System() {
     <>
       <PageHeader
         title="System"
-        description="Firmware information and safe onboard controls."
+        description="Manage keyboard behaviour, sleep, battery information, and the display clock."
         action={
           <Button variant="primary" onClick={refresh} disabled={busy}>
             {busy ? "Reading…" : "Refresh"}
@@ -245,17 +245,16 @@ export function System() {
 
       <div className="grid gap-6">
         {transport === "legacy-feature" && (
-          <Card title="Connected with supplied-driver firmware" kicker="Compatibility mode">
+          <Card title="Limited status information">
             <p className="text-sm leading-relaxed text-fg-2">
-              Lighting, TFT clock sync, and the official System settings block are available.
-              This firmware cannot report its current System values. The controls below show the
-              last settings applied by AK820 Pro Control when available; otherwise they begin with the
-              vendor defaults and only change the keyboard when you press Save.
+              This keyboard can save all the settings below, but it cannot send its current values
+              back to the app. The controls show your last saved choices when available and only
+              change the keyboard when you press Save.
             </p>
           </Card>
         )}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card title="Device" action={info && <Badge tone="good">Read from keyboard</Badge>}>
+          <Card title="Keyboard information" action={info && <Badge tone="good">Current</Badge>}>
             {info === null ? (
               transport === "legacy-feature" ? (
                 <div className="space-y-3">
@@ -266,10 +265,10 @@ export function System() {
                     />
                   )}
                   <p className="text-sm leading-relaxed text-fg-2">
-                    {batteryNote ?? "Detailed wired device reads are unavailable on this firmware."}
+                    {batteryNote ?? "Detailed status is unavailable over this wired connection."}
                   </p>
                   <p className="text-xs leading-relaxed text-fg-3">
-                    Current lighting, keymap, macro, System, and TFT values still have no verified read-back path.
+                    The app remembers successful changes, but this keyboard cannot report those settings back.
                   </p>
                 </div>
               ) : (
@@ -283,7 +282,7 @@ export function System() {
                     value: <Mono>v{info.firmware_version.toFixed(2)}</Mono>,
                   },
                   {
-                    label: "VID:PID",
+                    label: "Device ID",
                     value: <Mono>{hex4(info.vid)}:{hex4(info.pid)}</Mono>,
                   },
                   {
@@ -299,12 +298,8 @@ export function System() {
                     value: <Mono>{formatInt(info.macro_space_size)} bytes</Mono>,
                   },
                   {
-                    label: "TFT capacity",
+                    label: "Animation capacity",
                     value: <Mono>{info.tft_max_frames} frames</Mono>,
-                  },
-                  {
-                    label: "Frame version",
-                    value: <Mono>{info.frame_version}</Mono>,
                   },
                 ]}
               />
@@ -312,10 +307,10 @@ export function System() {
           </Card>
 
           <Card
-            title="Onboard system settings"
+            title="Keyboard settings"
             action={draft && (
               <div className="flex items-center gap-2">
-                <Badge tone="good">Read from keyboard</Badge>
+                <Badge tone="good">Current</Badge>
                 <Button variant="primary" size="sm" onClick={saveSystemSettings} disabled={busy || !hasChanges}>
                   {busy ? "Saving…" : "Save settings"}
                 </Button>
@@ -352,7 +347,7 @@ export function System() {
                     <Badge tone="warn">Last applied {new Date(legacySavedAt).toLocaleString()}</Badge>
                   )}
                 </div>
-                <p className="mt-3 text-xs text-fg-3">Write-only on this firmware; visual/behavioural confirmation is required.</p>
+                <p className="mt-3 text-xs text-fg-3">These controls show the last settings saved from this Mac.</p>
               </>
             ) : draft === null ? (
               <p className="text-sm text-fg-2">
@@ -374,12 +369,12 @@ export function System() {
                     </select>
                   </label>
                   <label className="grid gap-1.5 text-sm text-fg-2">
-                    Report-rate value
+                    Polling rate
                     <input type="number" min={0} max={255} value={draft.report_rate}
                       onChange={(e) => updateDraft("report_rate", Math.max(0, Math.min(255, Number(e.target.value) || 0)))} />
                   </label>
                   <label className="grid gap-1.5 text-sm text-fg-2">
-                    TFT display-time value
+                    Display timeout
                     <input type="number" min={0} max={255} value={draft.tft_display_time}
                       onChange={(e) => updateDraft("tft_display_time", Math.max(0, Math.min(255, Number(e.target.value) || 0)))} />
                   </label>
@@ -400,7 +395,7 @@ export function System() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card title="TFT clock">
+          <Card title="Display clock">
             <p className="mb-4 text-sm text-fg-2">
               Send this Mac's current local date and time to the keyboard display.
             </p>
@@ -415,10 +410,10 @@ export function System() {
               </p>
             )}
           </Card>
-          <Card title="Safety boundary">
+          <Card title="Built-in safeguards">
             <p className="text-sm leading-relaxed text-fg-2">
-              AK820 Pro Control never invokes firmware update or bootloader operations. Device writes
-              are serialized and require session approval; settings are read back when supported.
+              The app does not perform firmware updates. It asks before making changes and verifies
+              saved settings whenever the keyboard supports it.
             </p>
           </Card>
         </div>
