@@ -14,6 +14,16 @@ export function reactionLevel(mode: string, x: number, y: number, originX: numbe
   if (rowOnly && Math.abs(y - originY) > 0.25) return 0;
   const distance = rowOnly ? dx : Math.hypot(dx, y - originY);
   const reach = rowOnly ? horizontalReach : Math.hypot(horizontalReach, verticalReach);
+  if (mode === "ripples") {
+    const bandWidth = 16.5 / 2;
+    const edge = 0.4;
+    // At the default speed the leading and trailing waves clear the board in
+    // 0.8 seconds. The trailing wave turns LEDs off instead of fading all keys.
+    const front = (reach + bandWidth + edge) * time / (0.8 * 1.2);
+    const lightOn = clamp((front - distance) / edge);
+    const lightOff = clamp((front - bandWidth - distance) / edge);
+    return lightOn * (1 - lightOff);
+  }
   const travel = time * 9;
   const spread = clamp((travel - distance) / 0.65 + 1);
   // Keep the filled wave lit until it reaches every key, then dissipate together.

@@ -33,6 +33,12 @@ Planned for 0.8.x
 - Browser-tab media support in Now-Playing (currently only Music.app + Spotify desktop) — **declined for now** on privacy grounds; revisit if a non-invasive surface emerges.
 - JIS physical layout once hardware is available for verification.
 
+## [0.7.7-beta] — 2026-09-13
+
+### Fixed
+- Ripples now completes in about 0.8 seconds at default speed, with a lit band
+  approximately half the keyboard width and a following wave that turns LEDs off.
+
 ## [0.7.6-beta] — 2026-09-13
 
 ### Fixed

@@ -18,8 +18,9 @@ preview is not a frame-exact recording of the keyboard.
 
 User hardware observations on 13 September 2026 refined three reactive modes:
 Launch produces two approximately one-key-wide vertical bars travelling left and
-right from the pressed key; Ripples fills the keyboard before dissipating;
-Explode spreads along the bottom LED gap of the pressed row before fading.
+right from the pressed key. Ripples uses a roughly half-keyboard-width lit band
+followed by an outward off wave; the full cycle takes 0.8 seconds at default
+speed. Explode spreads along the bottom LED gap of the pressed row before fading.
 
 The miniature display plays locally remembered frames from a successful upload.
 Older application versions stored only an upload label; they cannot reconstruct
