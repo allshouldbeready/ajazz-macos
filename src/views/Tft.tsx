@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { Badge, Button, Card, ErrorBanner } from "../components/ui";
+import { Badge, Button, Card, Disclosure, ErrorBanner } from "../components/ui";
 import { PageHeader } from "../components/Layout";
 import { invokeDeviceWrite } from "../device-write";
 import { formatError } from "../errors";
@@ -180,13 +180,13 @@ export function Tft() {
       await invokeDeviceWrite(
         "tft_factory_default",
         undefined,
-        "Restore the firmware-default TFT animation.",
+        "Restore the keyboard's original display animation.",
       );
       setLastTft(saveLastApplied("tft", {
         kind: "factory",
         label: "Factory default",
       } satisfies LastTftState));
-      setInfo("Restored the firmware-default animation.");
+      setInfo("Restored the original display animation.");
     } catch (error) {
       setErr(formatError(error));
     } finally {
@@ -200,7 +200,7 @@ export function Tft() {
     <>
       <PageHeader
         title="Display"
-        description="Upload a still image or animated GIF, run a diagnostic pattern, or restore the factory animation."
+        description="Choose an animation, upload your own image, or restore the original display."
         action={
           <Button variant="ghost" onClick={() => void factoryDefault()} disabled={busy}>
             Factory Default
@@ -212,7 +212,7 @@ export function Tft() {
 
       {lastTft && (
         <div className="mb-5 flex items-center gap-2 text-xs text-fg-2">
-          <Badge tone="warn">Last applied by AK820 Pro Control</Badge>
+          <Badge tone="warn">Last used</Badge>
           <span>{lastTft.value.label} · {new Date(lastTft.savedAt).toLocaleString()}</span>
         </div>
       )}
@@ -220,23 +220,16 @@ export function Tft() {
       <div className="grid gap-6">
         <GifBrowser busy={busy} onApply={applyOnlineGif} />
 
-        <Card
-          title={
-            <span className="inline-flex items-center gap-2">
-              <span>Custom image</span>
-              <Badge tone="warn">Hardware verification pending</Badge>
-            </span>
-          }
-        >
+        <Card title="Upload from this Mac">
           <p className="text-sm text-fg-2">
-            PNG and JPEG files become one 128 × 128 RGB565 frame. GIFs retain
-            frame timing and are capped to the keyboard-safe frame budget.
+            Choose a PNG, JPEG, or GIF. The app prepares it for the keyboard while
+            preserving animation timing.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <Button variant="primary" onClick={() => void uploadImage()} disabled={busy}>
               {busy ? "Uploading…" : "Choose image…"}
             </Button>
-            <span className="text-xs uppercase tracking-wider text-fg-3">Fit</span>
+            <span className="text-xs uppercase tracking-wider text-fg-3">Image fit</span>
             <div className="inline-flex overflow-hidden rounded-md border border-line">
               {(["fill", "contain", "stretch"] as FitMode[]).map((mode) => (
                 <button
@@ -278,13 +271,12 @@ export function Tft() {
           )}
         </Card>
 
-        <Card title="Display diagnostics">
+        <Disclosure title="Test patterns" description="Optional display troubleshooting">
           <p className="text-sm text-fg-2">
-            Use a generated pattern to verify full-panel orientation, color,
-            animation timing, and successful TFT transfer before testing personal media.
+            Use these built-in patterns to check orientation, colour, and animation playback.
           </p>
           {presets === null ? (
-            <p className="mt-4 text-sm text-fg-3">Loading diagnostics…</p>
+            <p className="mt-4 text-sm text-fg-3">Loading test patterns…</p>
           ) : (
             <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {presets.map((preset) => (
@@ -307,7 +299,7 @@ export function Tft() {
                         <Badge tone="good">Last applied</Badge>
                       )}
                       <span className="text-[10px] uppercase tracking-wider text-fg-3">
-                        {preset.frame_count} fr · {formatDuration(preset.total_ms)}
+                        {preset.frame_count} frames · {formatDuration(preset.total_ms)}
                       </span>
                     </span>
                   </span>
@@ -322,9 +314,9 @@ export function Tft() {
             onClick={() => void applyPreset()}
             disabled={busy || !current}
           >
-            {busy ? "Uploading…" : current ? `Apply · ${current.display_name}` : "Select a diagnostic"}
+            {busy ? "Uploading…" : current ? `Use · ${current.display_name}` : "Select a test pattern"}
           </Button>
-        </Card>
+        </Disclosure>
 
         {info && (
           <Card title="Status">

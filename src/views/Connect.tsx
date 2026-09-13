@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { ChevronDown, CircleHelp, Usb } from "lucide-react";
+import { Usb } from "lucide-react";
 import type { DeviceInfo, ProbeReport } from "../types";
-import { Badge, BatteryBar, Button, Card, ErrorBanner, Mono, hex4, prettyProduct } from "../components/ui";
+import { Badge, BatteryBar, Button, Card, Disclosure, ErrorBanner, Mono, hex4, prettyProduct } from "../components/ui";
 import { Check, PageHeader } from "../components/Layout";
 import { formatError } from "../errors";
 
@@ -155,18 +155,7 @@ export function Connect({ onReconnect }: { onReconnect?: () => void }) {
           </Card>
         )}
 
-        <details className="group rounded-lg border border-line/70 bg-surface-elevated/45">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-sm text-fg-1 transition hover:text-fg-0 [&::-webkit-details-marker]:hidden">
-            <span className="flex items-center gap-3">
-              <CircleHelp size={16} className="text-fg-3" />
-              <span>
-                <span className="font-medium">Advanced connection details</span>
-                <span className="ml-2 text-xs text-fg-3">Useful when reporting a problem</span>
-              </span>
-            </span>
-            <ChevronDown size={16} className="text-fg-3 transition-transform duration-200 group-open:rotate-180" />
-          </summary>
-          <div className="border-t border-line/60 px-5 pb-5 pt-4">
+        <Disclosure title="Advanced connection details" description="Useful when reporting a problem">
             {devices === null ? (
               <p className="text-sm text-fg-2">Checking connection details…</p>
             ) : devices.length === 0 ? (
@@ -213,8 +202,7 @@ export function Connect({ onReconnect }: { onReconnect?: () => void }) {
                 </table>
               </div>
             )}
-          </div>
-        </details>
+        </Disclosure>
       </div>
     </>
   );

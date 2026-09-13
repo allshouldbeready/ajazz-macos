@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { PageHeader } from "../components/Layout";
-import { Badge, Button, Card, ErrorBanner, Mono } from "../components/ui";
+import { Badge, Button, Card, ErrorBanner } from "../components/ui";
 import { formatError } from "../errors";
 import { invokeDeviceWrite } from "../device-write";
 
@@ -331,10 +331,10 @@ export function Macros() {
     <>
       <PageHeader
         title="Macros"
-        description="Record key sequences once, replay them with a single key press. Up to 100 slots, 79 actions per macro."
+        description="Record a sequence once, then assign it to any key."
         action={
           <div className="flex gap-2">
-            {remote && <Badge tone="good">Read from keyboard</Badge>}
+            {remote && <Badge tone="good">Current</Badge>}
             <Button variant="ghost" size="sm" onClick={refresh} disabled={busy}>
               {busy ? "Reading…" : "Reload"}
             </Button>
@@ -353,8 +353,8 @@ export function Macros() {
       <ErrorBanner>{err}</ErrorBanner>
 
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-        {/* ----- slot list ----- */}
-        <Card title="Slots" action={
+        {/* ----- macro list ----- */}
+        <Card title="Saved macros" action={
           <Button size="sm" variant="ghost" onClick={addMacroSlot} disabled={busy || limits === null || remote === null}>
             + New
           </Button>
@@ -362,8 +362,8 @@ export function Macros() {
           {remote === null ? (
             <p className="text-sm text-fg-2">
               {err
-                ? "This firmware does not expose its onboard macro table. No guessed or empty table is shown."
-                : "Reading the onboard macro table…"}
+                ? "This keyboard cannot share its saved macros, so the app will not show guesses."
+                : "Reading saved macros from the keyboard…"}
             </p>
           ) : draft.length === 0 ? (
             <p className="text-sm text-fg-2">No macros yet. Click <b>+ New</b> to create one.</p>
@@ -397,7 +397,7 @@ export function Macros() {
 
         {/* ----- editor ----- */}
         <Card
-          title={selected ? `Macro M${selected.macro_id + 1}` : "Editor"}
+          title={selected ? names[selected.macro_id] || `Macro M${selected.macro_id + 1}` : "Macro details"}
           action={
             selected && (
               <Button
@@ -413,7 +413,7 @@ export function Macros() {
         >
           {remote === null ? (
             <p className="text-sm text-fg-2">
-              Macro editing is available after the keyboard returns its current macro table.
+              Editing is available after the keyboard returns its saved macros.
             </p>
           ) : selected === null ? (
             <p className="text-sm text-fg-2">
@@ -472,7 +472,7 @@ function MacroEditor({
     <div className="space-y-5">
       {/* name */}
       <div>
-        <label className="kicker mb-1 block">Name (local)</label>
+        <label className="kicker mb-1 block">Name</label>
         <input
           value={name}
           onChange={(e) => onNameChange(e.target.value)}
@@ -480,7 +480,7 @@ function MacroEditor({
           className="w-full rounded-md border border-line bg-surface-elevated/40 px-3 py-2 text-sm text-fg-0 outline-none focus:border-accent-500/60"
         />
         <p className="mt-1 text-xs text-fg-3">
-          Names are stored on this Mac only — the keyboard firmware doesn't keep them.
+          Names are stored on this Mac. The recorded actions are saved to the keyboard.
         </p>
       </div>
 
@@ -499,9 +499,7 @@ function MacroEditor({
           Clear actions
         </Button>
         <div className="ml-auto flex items-center gap-3 text-xs text-fg-2">
-          <span>
-            <Mono>{macro.actions.length}</Mono> actions
-          </span>
+          <span>{macro.actions.length} actions</span>
           <span className="flex items-center gap-2">
             <span className="relative h-1.5 w-24 overflow-hidden rounded-full bg-surface-base">
               <span
@@ -512,7 +510,7 @@ function MacroEditor({
                 style={{ width: `${sizeRatio * 100}%` }}
               />
             </span>
-            <Mono>{sizeBytes}/{sizeBudget} B</Mono>
+            <span>{Math.round(sizeRatio * 100)}% capacity</span>
           </span>
         </div>
       </div>
@@ -522,7 +520,7 @@ function MacroEditor({
           Recording — every keypress in this window goes into the macro.
           <br />
           <span className="text-xs text-fg-3">
-            Inter-event delays are captured as wall-clock milliseconds. Click <b>Stop</b> when done.
+            Timing between each press is recorded automatically. Click <b>Stop</b> when done.
           </span>
         </div>
       )}
@@ -554,8 +552,7 @@ function MacroEditor({
                     </Badge>
                   </td>
                   <td className="px-3 py-1.5 font-mono text-fg-1">
-                    {HID_TO_LABEL[a.key_code] ?? `0x${a.key_code.toString(16).padStart(2, "0")}`}
-                    <span className="ml-2 text-xs text-fg-3">[{a.kind}]</span>
+                    {HID_TO_LABEL[a.key_code] ?? "Unknown key"}
                   </td>
                   <td className="px-3 py-1.5">
                     <input

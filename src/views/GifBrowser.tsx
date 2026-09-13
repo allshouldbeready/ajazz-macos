@@ -105,21 +105,21 @@ export function GifBrowser({ busy, onApply }: Props) {
     setTransform((current) => ({ ...current, [key]: value }));
   }
 
-  let applyLabel = "Apply to TFT";
+  let applyLabel = "Use on display";
   if (preparing) applyLabel = "Downloading…";
   else if (busy) applyLabel = "Uploading…";
 
   return (
     <Card
-      kicker="Online library"
-      title="Find a GIF"
+      kicker="GIPHY"
+      title="Find an animation"
       action={<Badge tone="accent">Powered by GIPHY</Badge>}
     >
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_330px]">
         <div className="min-w-0">
           <div className="flex flex-wrap items-end gap-3">
             <label className="min-w-52 flex-1">
-              <span className="kicker mb-1 block">GIPHY API key</span>
+              <span className="kicker mb-1 block">GIPHY key</span>
               <input
                 className="w-full"
                 type="password"
@@ -193,7 +193,7 @@ export function GifBrowser({ busy, onApply }: Props) {
         <div className="rounded-lg border border-line bg-surface-base/50 p-4">
           <div className="mb-3 flex items-center justify-between">
             <div>
-              <p className="kicker">128 × 128 preview</p>
+              <p className="kicker">Display preview</p>
               <p className="mt-1 line-clamp-1 text-sm text-fg-1">
                 {selected?.title ?? "Select a search result"}
               </p>
@@ -208,7 +208,7 @@ export function GifBrowser({ busy, onApply }: Props) {
             {selected ? (
               <img
                 src={selected.downloadUrl}
-                alt="TFT crop preview"
+                alt="Display crop preview"
                 className="absolute max-w-none"
                 style={imagePlacement}
               />
@@ -235,10 +235,10 @@ export function GifBrowser({ busy, onApply }: Props) {
               onChange={(value) => updateTransform("position_y", value)} />
             <EditorRange label="Playback speed" value={transform.speed_percent} min={25} max={400} suffix="%"
               onChange={(value) => updateTransform("speed_percent", value)} />
-            <EditorRange label="Frame budget" value={transform.max_frames} min={1} max={MAX_FRAME_BUDGET}
+            <EditorRange label="Maximum frames" value={transform.max_frames} min={1} max={MAX_FRAME_BUDGET}
               onChange={(value) => updateTransform("max_frames", value)} />
             <label className="flex items-center justify-between gap-3 text-xs text-fg-2">
-              <span>Letterbox color</span>
+              <span>Background colour</span>
               <input
                 type="color"
                 value={`#${transform.background}`}
@@ -262,11 +262,11 @@ export function GifBrowser({ busy, onApply }: Props) {
             </Button>
           </div>
           <p className="mt-2 text-[11px] leading-relaxed text-fg-3">
-            Crop and sizing match the TFT output. If a GIF exceeds the frame budget, frames are sampled across its full timeline instead of cutting off the ending.
+            The preview matches the keyboard display. Longer animations are sampled across their full timeline so the ending is preserved.
           </p>
           {transform.max_frames > DEFAULT_FRAME_BUDGET && (
             <p className="mt-2 text-[11px] leading-relaxed text-amber-300">
-              Extended transfer: up to {estimatedTransferMiB(transform.max_frames)} MiB. The official limit is 140 frames; larger uploads can take several minutes.
+              Longer transfer: up to {estimatedTransferMiB(transform.max_frames)} MB. The keyboard supports 140 frames; larger uploads can take several minutes.
             </p>
           )}
         </div>

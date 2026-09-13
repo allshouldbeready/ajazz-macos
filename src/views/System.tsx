@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Badge, BatteryBar, Button, Card, ErrorBanner, KVList, Mono, Toggle, formatInt, hex4 } from "../components/ui";
+import { Badge, BatteryBar, Button, Card, Disclosure, ErrorBanner, KVList, Mono, Toggle, formatInt, hex4 } from "../components/ui";
 import { PageHeader } from "../components/Layout";
 import { invokeDeviceWrite } from "../device-write";
 import { formatError } from "../errors";
@@ -232,7 +232,7 @@ export function System() {
   return (
     <>
       <PageHeader
-        title="System"
+        title="Settings"
         description="Manage keyboard behaviour, sleep, battery information, and the display clock."
         action={
           <Button variant="primary" onClick={refresh} disabled={busy}>
@@ -291,10 +291,10 @@ export function System() {
                   },
                   {
                     label: "Profile",
-                    value: <Badge tone="accent">slot {info.current_profile}</Badge>,
+                    value: <Badge tone="accent">Profile {info.current_profile}</Badge>,
                   },
                   {
-                    label: "Macro space",
+                    label: "Macro capacity",
                     value: <Mono>{formatInt(info.macro_space_size)} bytes</Mono>,
                   },
                   {
@@ -410,12 +410,12 @@ export function System() {
               </p>
             )}
           </Card>
-          <Card title="Built-in safeguards">
+          <Disclosure title="Built-in safeguards" description="How the app protects your keyboard">
             <p className="text-sm leading-relaxed text-fg-2">
               The app does not perform firmware updates. It asks before making changes and verifies
               saved settings whenever the keyboard supports it.
             </p>
-          </Card>
+          </Disclosure>
         </div>
       </div>
     </>

@@ -33,6 +33,21 @@ Planned for 0.8.x
 - Browser-tab media support in Now-Playing (currently only Music.app + Spotify desktop) — **declined for now** on privacy grounds; revisit if a non-invasive surface emerges.
 - JIS physical layout once hardware is available for verification.
 
+## [0.7.4-beta] — 2026-09-13
+
+### Changed
+
+- Extended the v0.7.3 interface refinement across Lighting, Settings, Keys,
+  Macros, and Display with shorter task-oriented labels and explanations.
+- Added a shared collapsed disclosure treatment for advanced colour controls,
+  experimental audio lighting, key-preview guidance, display test patterns,
+  connection diagnostics, and keyboard safeguards.
+- Removed raw action codes, byte counts, RGB565 terminology, and HID identifiers
+  from routine workflows while retaining
+  essential troubleshooting information in advanced sections.
+- Renamed **System** to **Settings** and **Keymap** to **Keys** in the primary
+  navigation.
+
 ## [0.7.3-beta] — 2026-09-13
 
 ### Changed

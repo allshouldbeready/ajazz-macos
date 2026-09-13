@@ -25,8 +25,8 @@ const ICON_PROPS = { size: 16, strokeWidth: 1.6 } as const;
 const NAV: NavItem<Tab>[] = [
   { id: "connect", label: "My Keyboard", icon: <Plug {...ICON_PROPS} /> },
   { id: "lighting", label: "Lighting", icon: <Bulb {...ICON_PROPS} /> },
-  { id: "system", label: "System", icon: <Settings {...ICON_PROPS} /> },
-  { id: "keymap", label: "Keymap", icon: <Keyboard {...ICON_PROPS} /> },
+  { id: "system", label: "Settings", icon: <Settings {...ICON_PROPS} /> },
+  { id: "keymap", label: "Keys", icon: <Keyboard {...ICON_PROPS} /> },
   { id: "macros", label: "Macros", icon: <Macro {...ICON_PROPS} /> },
   { id: "tft", label: "Display", icon: <Screen {...ICON_PROPS} /> },
 ];

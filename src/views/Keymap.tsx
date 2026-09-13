@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Badge, Button, Card, ErrorBanner } from "../components/ui";
+import { Badge, Button, Card, Disclosure, ErrorBanner } from "../components/ui";
 import { PageHeader } from "../components/Layout";
 import type { PhysicalKey } from "../data/layouts";
 import { useLayout } from "../data/layouts/use-layout";
@@ -110,7 +110,7 @@ export function Keymap() {
       id: "macro",
       name: "Macros",
       description:
-        "Trigger a stored macro by slot. Create or edit macros in the Macros tab.",
+        "Trigger a saved macro. Create or edit macros in the Macros tab.",
       entries: macros.map<ActionEntry>((m) => ({
         label: `M${m.macro_id + 1}`,
         hint: `M${m.macro_id + 1}`,
@@ -270,9 +270,9 @@ export function Keymap() {
   }, [remote, draft]);
 
   const isDirty = dirty.size > 0;
-  let keymapTitle = "Reading from keyboard…";
+  let keymapTitle = "Reading assignments…";
   if (!draft && err) {
-    keymapTitle = "Current keymap unavailable";
+    keymapTitle = "Current assignments unavailable";
   } else if (draft && isDirty) {
     keymapTitle = `${dirty.size} unsaved change${dirty.size === 1 ? "" : "s"} — click Save to commit`;
   } else if (draft) {
@@ -282,15 +282,15 @@ export function Keymap() {
   return (
     <>
       <PageHeader
-        title="Keymap"
+        title="Keys"
         description={
           layer === "fn"
-            ? "Hold Fn to access this layer. Empty slots fall back to the base layer's mapping."
-            : "Click a key, then pick a new action below to remap it. Save writes every change back to the keyboard at once."
+            ? "Choose what each key does while you hold Fn. Unchanged keys keep their normal action."
+            : "Select a key, choose its new action, then save your changes."
         }
         action={
           <div className="flex items-center gap-2">
-            {remote && <Badge tone="good">Read from keyboard</Badge>}
+            {remote && <Badge tone="good">Current</Badge>}
             <LayerSwitch value={layer} onChange={(l) => { setLayer(l); setSelectedSlot(null); }} />
             <Button onClick={() => load(layer)} disabled={busy}>
               {busy ? "Reading…" : "Reload"}
@@ -299,9 +299,9 @@ export function Keymap() {
               variant="ghost"
               onClick={resetToFactory}
               disabled={busy || !draft}
-              title="Stage the firmware's factory-default keymap for the active layer. Review, then Save to commit."
+              title="Preview the original assignments for this layer. Choose Save to apply them."
             >
-              Factory default
+              Restore defaults
             </Button>
             <Button variant={isDirty ? "ghost-active" : "ghost"} onClick={discard} disabled={busy || !isDirty}>
               Discard
@@ -331,16 +331,16 @@ export function Keymap() {
         ) : (
           <p className="text-sm text-fg-2">
             {err
-              ? "This firmware does not expose its keymap, so AK820 Pro Control will not display guessed assignments."
-              : "Reading the active assignments from the keyboard…"}
+              ? "This keyboard cannot share its current key assignments, so the app will not show guesses."
+              : "Reading the current assignments from the keyboard…"}
           </p>
         )}
       </Card>
 
-      <Card title="Action picker" className="mt-6">
+      <Card title="Choose an action" className="mt-6">
         {!draft ? (
           <p className="text-sm text-fg-2">
-            Key remapping is available after the keyboard returns its current keymap.
+            Key changes are available after the keyboard returns its current assignments.
           </p>
         ) : selectedSlot === null ? (
           <p className="text-sm text-fg-2">
@@ -350,10 +350,8 @@ export function Keymap() {
           <>
             {isFRowSlot(selectedSlot) && layer === "base" && (
               <div className="mb-4 rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-xs text-fg-1">
-                <b>Heads-up:</b> in <span className="font-mono">Mac</span> mode (hardware switch on the back), the keyboard
-                preempts the F-row base layer with media keys (brightness, volume, …). Remaps here may not fire on plain
-                F-key press. Switch to the <span className="font-mono">Fn</span> layer above for F-row macros that should
-                trigger via <span className="font-mono">Fn + F-key</span>.
+                <b>Mac mode:</b> the top row controls brightness, volume, and media by default.
+                For shortcuts that should run with Fn + F-key, choose the Fn layer above.
               </div>
             )}
             <ActionPicker
@@ -368,14 +366,14 @@ export function Keymap() {
         )}
       </Card>
 
-      <Card title="Legend" className="mt-6">
+      <Disclosure title="Colour guide" description="How changes appear on the keyboard preview" className="mt-6">
         <div className="flex flex-wrap items-center gap-5 text-xs text-fg-2">
-          <LegendDot tone="bg-surface-raised border-line" label="factory default" />
-          <LegendDot tone="bg-accent-500/20 border-accent-500/60" label="remapped (this layer)" />
-          <LegendDot tone="bg-warn/15 border-warn/40" label="advanced action (macro, layer, function, mouse…)" />
-          <LegendDot tone="bg-accent-500/40 border-accent-300 animate-pulse" label="unsaved change" />
+          <LegendDot tone="bg-surface-raised border-line" label="Original action" />
+          <LegendDot tone="bg-accent-500/20 border-accent-500/60" label="Changed on this layer" />
+          <LegendDot tone="bg-warn/15 border-warn/40" label="Macro, layer, media, or mouse action" />
+          <LegendDot tone="bg-accent-500/40 border-accent-300 animate-pulse" label="Not saved yet" />
         </div>
-      </Card>
+      </Disclosure>
     </>
   );
 }
@@ -753,8 +751,9 @@ function describeAction(
   pk: PhysicalKey,
   automations: AutomationSummary[],
 ): ActionDetail {
+  const keyName = pk.label;
   if (!a || a.kind === "default") {
-    return { short: hidName(pk.hid), title: `Slot ${pk.slot} · default (${hidName(pk.hid)})`, tone: "default" };
+    return { short: hidName(pk.hid), title: `${keyName} · original action`, tone: "default" };
   }
   switch (a.kind) {
     case "keyboard": {
@@ -767,34 +766,34 @@ function describeAction(
           const short = auto.name.length > 5 ? auto.name.slice(0, 4) + "…" : auto.name;
           return {
             short,
-            title: `Slot ${pk.slot} · automation "${auto.name}" (marker F${a.usage - 91})`,
+            title: `${keyName} · runs “${auto.name}”`,
             tone: "accent",
           };
         }
       }
       if (a.usage === pk.hid) {
-        return { short: hidName(a.usage), title: `Slot ${pk.slot} · default (${hidName(a.usage)})`, tone: "default" };
+        return { short: hidName(a.usage), title: `${keyName} · original action`, tone: "default" };
       }
       return {
         short: hidName(a.usage),
-        title: `Slot ${pk.slot} · remapped to ${hidName(a.usage)} (HID 0x${a.usage.toString(16)})`,
+        title: `${keyName} · changed to ${hidName(a.usage)}`,
         tone: "accent",
       };
     }
     case "mouse":
-      return { short: `M${a.button}`, title: `Slot ${pk.slot} · mouse button ${a.button}`, tone: "warn" };
+      return { short: `M${a.button}`, title: `${keyName} · mouse button ${a.button}`, tone: "warn" };
     case "consumer_key":
-      return { short: "media", title: `Slot ${pk.slot} · consumer key 0x${a.value.toString(16)}`, tone: "warn" };
+      return { short: "media", title: `${keyName} · media control`, tone: "warn" };
     case "macro":
-      return { short: `M${a.macro_id + 1}`, title: `Slot ${pk.slot} · macro M${a.macro_id + 1}`, tone: "accent" };
+      return { short: `M${a.macro_id + 1}`, title: `${keyName} · macro M${a.macro_id + 1}`, tone: "accent" };
     case "tgl":
-      return { short: `L${a.value}`, title: `Slot ${pk.slot} · toggle layer ${a.value}`, tone: "warn" };
+      return { short: `L${a.value}`, title: `${keyName} · switch layer`, tone: "warn" };
     case "func":
-      return { short: "func", title: `Slot ${pk.slot} · FUNC 0x${a.value.toString(16).padStart(6, "0")}`, tone: "warn" };
+      return { short: "func", title: `${keyName} · special function`, tone: "warn" };
     case "func_v2":
-      return { short: "fn", title: `Slot ${pk.slot} · FUNC_V2 ${a.param1.toString(16)} / ${a.param2.toString(16)}`, tone: "warn" };
+      return { short: "fn", title: `${keyName} · Fn function`, tone: "warn" };
     case "raw":
-      return { short: `0x${a.page.toString(16)}`, title: `Slot ${pk.slot} · raw page=0x${a.page.toString(16)} params=${a.param1},${a.param2},${a.param3}`, tone: "warn" };
+      return { short: "advanced", title: `${keyName} · advanced action`, tone: "warn" };
   }
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Direction, LightingConfig, LightingModeInfo } from "../types";
-import { Badge, Button, Card, ErrorBanner, Slider, Toggle } from "../components/ui";
+import { Badge, Button, Card, Disclosure, ErrorBanner, Slider, Toggle } from "../components/ui";
 import { PageHeader } from "../components/Layout";
 import { CustomLightingPaint } from "./CustomLightingPaint";
 import { formatError } from "../errors";
@@ -231,6 +231,9 @@ export function Lighting() {
 
   const hasSecondary = cfg.secondary !== null && cfg.secondary !== undefined;
   const isCustomMode = cfg.mode === "custom";
+  let audioStatus = "Unlock above to enable.";
+  if (audioReactive) audioStatus = "Live — keyboard is following the system audio mix.";
+  else if (audioReactiveUnlocked) audioStatus = "Ready to start.";
 
   return (
     <>
@@ -238,8 +241,8 @@ export function Lighting() {
         title="Lighting"
         description={
           isCustomMode
-            ? "Per-key custom RGB — click any key on the layout below to paint it."
-            : "Per-keyboard global effects. Changes apply immediately when auto-apply is on."
+            ? "Choose a colour for each key using the keyboard below."
+            : "Choose an effect, colours, brightness, and speed."
         }
         action={
           isCustomMode ? null : (
@@ -268,17 +271,17 @@ export function Lighting() {
           title="Mode"
           action={
             stateSource === "device" ? (
-              <Badge tone="good">Read from keyboard</Badge>
+              <Badge tone="good">Current</Badge>
             ) : lastApplied && !audioReactive ? (
-              <Badge tone="warn">Last applied {lastApplied}</Badge>
+              <Badge tone="warn">Last saved {lastApplied}</Badge>
             ) : audioReactive ? (
-              <span className="text-xs text-fg-3">paused while audio-reactive is on</span>
+              <span className="text-xs text-fg-3">Paused while audio lighting is on</span>
             ) : null
           }
         >
           {stateSource === null && (
             <p className="mb-4 rounded-md border border-warn/40 bg-warn-soft px-3 py-2 text-xs text-warn">
-              This firmware cannot report its current lighting. Select and Apply a configuration once so AK820 Pro Control can remember it.
+              The keyboard cannot report its current lighting. Apply an effect once and the app will remember it here.
             </p>
           )}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
@@ -297,7 +300,7 @@ export function Lighting() {
                   {m.label}
                   {isCurrent && (
                     <span className="ml-auto text-[9px] uppercase tracking-wider text-good">
-                      {stateSource === "device" ? "current" : "last applied"}
+                      {stateSource === "device" ? "current" : "last saved"}
                     </span>
                   )}
                 </Button>
@@ -317,7 +320,7 @@ export function Lighting() {
         ) : (
         <>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card title="Color">
+          <Card title="Colour">
             {currentCfg && (
               <div className="mb-4 flex items-center gap-2 text-xs text-fg-2">
                 <span className="h-3 w-3 rounded-full border border-line" style={{ backgroundColor: `#${currentCfg.color}` }} />
@@ -343,7 +346,7 @@ export function Lighting() {
                 placeholder="FFFFFF"
                 className="w-28 font-mono uppercase"
               />
-              <Badge tone="neutral">primary</Badge>
+              <Badge tone="neutral">Primary</Badge>
             </div>
 
             <div className="mt-5 border-t border-line/60 pt-4">
@@ -351,7 +354,7 @@ export function Lighting() {
                 checked={hasSecondary}
                 onChange={(v) => update("secondary", v ? "000000" : null)}
               >
-                Secondary color (dual-tone modes)
+                Secondary colour
               </Toggle>
               {hasSecondary && (
                 <div className="mt-3 flex items-center gap-3">
@@ -371,17 +374,17 @@ export function Lighting() {
                     placeholder="000000"
                     className="w-28 font-mono uppercase"
                   />
-                  <Badge tone="neutral">secondary</Badge>
+                  <Badge tone="neutral">Secondary</Badge>
                 </div>
               )}
             </div>
           </Card>
 
           <Card
-            title="Direction"
+            title="Movement"
             action={
               !currentMode?.supports_direction && (
-                <span className="text-xs text-fg-3">ignored for this mode</span>
+                <span className="text-xs text-fg-3">Not available for this effect</span>
               )
             }
           >
@@ -397,27 +400,34 @@ export function Lighting() {
                     onClick={() => update("direction", d)}
                     disabled={!supported}
                   >
-                    {d}
+                    {d.charAt(0).toUpperCase() + d.slice(1)}
                   </Button>
                 );
               })}
             </div>
 
-            <div className="mt-5 border-t border-line/60 pt-4">
-              <p className="mb-2 text-xs uppercase tracking-wider text-fg-2">
-                colorMode <span className="ml-1 normal-case text-fg-3">(0 = mono, &gt;0 cycles per mode)</span>
-              </p>
-              <input
-                type="number"
-                min={0}
-                max={255}
-                value={cfg.color_mode}
-                onChange={(e) =>
-                  update("color_mode", Math.max(0, Math.min(255, Number(e.target.value) || 0)))
-                }
-                className="w-24 font-mono"
-              />
-            </div>
+            <Disclosure
+              className="mt-5"
+              title="Advanced colour behaviour"
+              description="Fine-tune colour cycling"
+            >
+              <label className="grid max-w-xs gap-1.5 text-sm text-fg-2">
+                Colour variation
+                <input
+                  type="number"
+                  min={0}
+                  max={255}
+                  value={cfg.color_mode}
+                  onChange={(e) =>
+                    update("color_mode", Math.max(0, Math.min(255, Number(e.target.value) || 0)))
+                  }
+                  className="w-24 font-mono"
+                />
+                <span className="text-xs text-fg-3">
+                  Use 0 for one colour; higher values enable effect-specific colour cycling.
+                </span>
+              </label>
+            </Disclosure>
           </Card>
         </div>
 
@@ -431,49 +441,33 @@ export function Lighting() {
         )}
         </div>
 
-        {/*
-          * Audio-reactive (Alpha) — deliberately the *last* card on this
-          * page. The Mode / Color / Direction / Levels stack above is the
-          * primary daily workflow; the experimental block lives at the
-          * bottom where a casual user has to scroll past the real
-          * controls to find it, and the Alpha badge + amber warning
-          * makes its status unambiguous when they get there.
-          */}
-        <Card
-          title={
-            <span className="inline-flex items-center gap-2">
-              <span>Audio-reactive</span>
-              <Badge tone="warn">Alpha</Badge>
-            </span>
-          }
-          action={
+        <Disclosure
+          title="Experimental audio lighting"
+          description="Optional preview feature"
+        >
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <Badge tone="warn">Experimental</Badge>
             <Toggle
               checked={audioReactiveUnlocked}
               onChange={toggleAudioReactiveUnlock}
             >
               {audioReactiveUnlocked ? "Unlocked" : "Locked"}
             </Toggle>
-          }
-        >
+          </div>
           <p className="text-sm text-fg-2">
-            Taps the macOS system-audio mix, runs an FFT, and paints the keyboard
-            with bass / mids / highs as red / green / blue across vertical zones.
-            While streaming, the firmware sits in <code>custom</code> mode and the
-            controls above are paused.
+            Make the keyboard react to audio playing on this Mac. Bass, vocals,
+            and higher sounds illuminate different areas in red, green, and blue.
+            The regular lighting controls are paused while this is active.
           </p>
           <p className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-fg-1">
             <strong className="text-amber-300">Experimental — use at your own risk.</strong>
             <br />
-            Known issues: visible flicker on real music, the wire-level cadence
-            is sometimes faster than the firmware's per-key RGB pipeline can
-            ingest. The toggle below stays disabled until you opt in here,
-            so a casual user can't accidentally enable a feature that looks
-            broken. The opt-in persists across launches.
+            Known issue: lighting may flicker during music. Unlocking this feature
+            is remembered across launches.
           </p>
           <p className="mt-2 text-xs text-fg-3">
-            First run pops the macOS Screen Recording permission prompt — that's
-            normal, ScreenCaptureKit shares the same TCC bucket even for
-            audio-only capture. Once granted, the toggle works silently.
+            macOS may ask for Screen Recording permission the first time because
+            that permission also covers system-audio capture.
           </p>
 
           <div
@@ -485,11 +479,7 @@ export function Lighting() {
             <div>
               <p className="text-sm text-fg-1">Streaming</p>
               <p className="text-xs text-fg-3">
-                {audioReactive
-                  ? "Live — keyboard is following the system audio mix."
-                  : audioReactiveUnlocked
-                  ? "Idle. Flip to start the FFT loop."
-                  : "Unlock above to enable."}
+                {audioStatus}
               </p>
             </div>
             <Toggle
@@ -500,7 +490,7 @@ export function Lighting() {
               {audioReactive ? "Streaming" : "Off"}
             </Toggle>
           </div>
-        </Card>
+        </Disclosure>
       </div>
     </>
   );

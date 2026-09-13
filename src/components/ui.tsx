@@ -1,4 +1,5 @@
 import type { PropsWithChildren, ReactNode } from "react";
+import { ChevronDown } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Card — elevated surface with rim-light, used for every block of content.
@@ -36,6 +37,36 @@ export function Card({
       )}
       <div className={(hasHeader ? "px-5 pb-5" : "p-5")}>{children}</div>
     </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Disclosure — secondary or technical content, collapsed by default.
+
+export function Disclosure({
+  children,
+  title,
+  description,
+  className = "",
+}: PropsWithChildren<{
+  title: ReactNode;
+  description?: ReactNode;
+  className?: string;
+}>) {
+  return (
+    <details className={`group rounded-lg border border-line/70 bg-surface-elevated/45 ${className}`}>
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-sm text-fg-1 transition hover:text-fg-0 [&::-webkit-details-marker]:hidden">
+        <span>
+          <span className="font-medium">{title}</span>
+          {description && <span className="ml-2 text-xs text-fg-3">{description}</span>}
+        </span>
+        <ChevronDown
+          size={16}
+          className="shrink-0 text-fg-3 transition-transform duration-200 group-open:rotate-180"
+        />
+      </summary>
+      <div className="border-t border-line/60 px-5 pb-5 pt-4">{children}</div>
+    </details>
   );
 }
 
