@@ -33,6 +33,14 @@ Planned for 0.8.x
 - Browser-tab media support in Now-Playing (currently only Music.app + Spotify desktop) — **declined for now** on privacy grounds; revisit if a non-invasive surface emerges.
 - JIS physical layout once hardware is available for verification.
 
+## [0.7.6-beta] — 2026-09-13
+
+### Fixed
+- Matched reactive previews to user-observed hardware: Launch sends two narrow
+  full-height bars in opposite directions, Ripples fills the keyboard before
+  fading, and Explode spreads through the bottom LED gap of the pressed row.
+- Reactive preview travel and dissipation now respond to the speed control.
+
 ## [0.7.5-beta] — 2026-09-13
 
 ### Added

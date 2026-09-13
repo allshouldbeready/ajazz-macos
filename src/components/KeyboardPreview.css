@@ -7,6 +7,7 @@
 .keyboard-preview-board { position: relative; width: 100%; aspect-ratio: 849 / 338; border-radius: 9px; background: linear-gradient(160deg, #ffffff12, #00000018), var(--case); box-shadow: inset 0 1px 1px #ffffff30, inset 0 -5px 0 #00000033, 0 12px 18px #00000045, 0 2px 0 #050608; transform: rotateX(5deg); }
 .keyboard-preview-key { position: absolute; padding: 0; border: 0; border-radius: 4px; background: #111418; cursor: pointer; -webkit-tap-highlight-color: transparent; --light: 0; --led: #9c81ff; }
 .keyboard-preview-glow { position: absolute; inset: -1px; border-radius: 4px; background: var(--led); opacity: var(--light); box-shadow: 0 0 7px 2px var(--led); }
+.keyboard-preview-key[data-bottom-glow="true"] .keyboard-preview-glow { inset: auto -2px -2px; height: 3px; border-radius: 1px; box-shadow: 0 1px 4px 1px var(--led); }
 .keyboard-preview-keycap { position: absolute; display: flex; align-items: center; justify-content: center; inset: 2px 2px 4px; padding: 1px; border-radius: 3px; background: linear-gradient(160deg, #ffffff22, #00000012), var(--key); color: var(--key-ink); box-shadow: inset 1px 1px 1px #ffffff80, inset -1px -2px 2px #00000030, 0 3px 0 color-mix(in srgb, var(--key) 62%, black); font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: clamp(5px, 0.85vw, 11px); font-weight: 550; line-height: 1; transition: transform 80ms ease; }
 .keyboard-preview-key.is-modifier { --key: var(--modifier); }
 .keyboard-preview-key.is-accent { --key: var(--accent-key); }

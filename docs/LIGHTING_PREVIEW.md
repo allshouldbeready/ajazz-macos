@@ -16,6 +16,11 @@ These animations illustrate the effect catalogue. Exact firmware animation
 curves and timing have not been measured for every hardware revision, so the
 preview is not a frame-exact recording of the keyboard.
 
+User hardware observations on 13 September 2026 refined three reactive modes:
+Launch produces two approximately one-key-wide vertical bars travelling left and
+right from the pressed key; Ripples fills the keyboard before dissipating;
+Explode spreads along the bottom LED gap of the pressed row before fading.
+
 The miniature display plays locally remembered frames from a successful upload.
 Older application versions stored only an upload label; they cannot reconstruct
 the original animation from that label or read it back from the keyboard.

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { ANSI_LAYOUT } from "../data/layouts";
 import type { LedColor, LightingConfig } from "../types";
 import "./KeyboardPreview.css";
+import { reactionLevel } from "../lighting-reactions";
 
 type Point = { slot: number; label: string; hid: number; x: number; y: number; w: number };
 const UNIT = 50;
@@ -82,7 +83,7 @@ export function KeyboardPreview({ config, display, customColors, controls }: {
         last = now;
         const cfg = currentConfig.current;
         const t = paused ? 1 : now / 1000 * (0.3 + cfg.speed * 0.3);
-        presses.current = presses.current.filter((p) => now - p.time < 3500);
+        presses.current = presses.current.filter((p) => now - p.time < 12000);
         elements?.forEach((element, index) => {
           const key = KEYS[index];
           const x = key.x / UNIT;
@@ -95,19 +96,11 @@ export function KeyboardPreview({ config, display, customColors, controls }: {
           let down = false;
           for (const hit of presses.current) {
             const age = (now - hit.time) / 1000;
-            const distance = Math.hypot(x - hit.x / UNIT, y - hit.y / UNIT);
             if (hit.slot === key.slot && age < 0.15) down = true;
             if (cfg.mode === "single-on" || cfg.mode === "single-off") {
               if (hit.slot === key.slot) reaction = Math.max(reaction, clamp(1 - age / 1.5));
-            } else if (cfg.mode === "launch") {
-              const dx = x - hit.x / UNIT;
-              const dy = y - hit.y / UNIT;
-              const travel = { up: -dy, down: dy, left: -dx, right: dx }[cfg.direction];
-              const cross = ["up", "down"].includes(cfg.direction) ? dx : dy;
-              reaction = Math.max(reaction, clamp(1 - Math.abs(travel - age * 9) / 1.8) * clamp(1 - Math.abs(cross)));
-            } else {
-              const spread = cfg.mode === "explode" ? clamp(1 - distance / Math.max(0.1, age * 9)) : clamp(1 - Math.abs(distance - age * 7) / 1.2);
-              reaction = Math.max(reaction, spread * clamp(1 - age / 2.5));
+            } else if (REACTIVE.has(cfg.mode)) {
+              reaction = Math.max(reaction, reactionLevel(cfg.mode, x, y, hit.x / UNIT, hit.y / UNIT, age, cfg.speed));
             }
           }
           switch (cfg.mode) {
@@ -138,6 +131,7 @@ export function KeyboardPreview({ config, display, customColors, controls }: {
           element.style.setProperty("--led", color);
           element.style.setProperty("--light", String(clamp(level * cfg.brightness / 5)));
           element.dataset.pressed = String(down);
+          element.dataset.bottomGlow = String(cfg.mode === "explode");
         });
       }
       frame = requestAnimationFrame(draw);
