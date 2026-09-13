@@ -278,10 +278,10 @@ export function Lighting() {
               <input aria-label="Preview colour" type="color" className="h-8 w-10" value={`#${cfg.color}`} onChange={(e) => updateColor(e.target.value.slice(1).toUpperCase())} />
             </label>
             <label className="flex items-center gap-2">Brightness
-              <input aria-label="Preview brightness" type="range" className="w-20" min={0} max={5} value={cfg.brightness} onChange={(e) => update("brightness", Number(e.target.value))} />
+              <input aria-label="Preview brightness" type="range" className="w-20" min={0} max={5} value={cfg.brightness} style={{ ["--pct" as never]: `${cfg.brightness * 20}%` }} onChange={(e) => update("brightness", Number(e.target.value))} />
             </label>
             <label className="flex items-center gap-2">Speed
-              <input aria-label="Preview speed" type="range" className="w-20" min={0} max={5} value={cfg.speed} onChange={(e) => update("speed", Number(e.target.value))} />
+              <input aria-label="Preview speed" type="range" className="w-20" min={0} max={5} value={cfg.speed} style={{ ["--pct" as never]: `${cfg.speed * 20}%` }} onChange={(e) => update("speed", Number(e.target.value))} />
             </label>
           </>}
         />

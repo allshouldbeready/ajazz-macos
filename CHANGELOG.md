@@ -33,6 +33,12 @@ Planned for 0.8.x
 - Browser-tab media support in Now-Playing (currently only Music.app + Spotify desktop) — **declined for now** on privacy grounds; revisit if a non-invasive surface emerges.
 - JIS physical layout once hardware is available for verification.
 
+## [0.7.8-beta] — 2026-09-13
+
+### Fixed
+- Lighting preview brightness and speed slider fills now follow their selected
+  values instead of staying at the stylesheet's 50% fallback.
+
 ## [0.7.7-beta] — 2026-09-13
 
 ### Fixed
