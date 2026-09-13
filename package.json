@@ -2,7 +2,7 @@
   "name": "ak820-pro-macos",
   "productName": "AK820 Pro Control",
   "description": "Open-source macOS-first control software for the Epomaker / Ajazz AK820 Pro mechanical keyboard",
-  "version": "0.7.4-beta",
+  "version": "0.7.5-beta",
   "license": "MIT",
   "author": "allshouldbeready; based on work by wsclx",
   "engines": {
@@ -22,6 +22,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "test:preview": "node --test tests/tft-preview.test.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",

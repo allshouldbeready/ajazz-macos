@@ -7,6 +7,12 @@ Most processing is local: keyboard settings are exchanged over USB HID and app
 preferences are stored in the macOS webview profile. Optional features have the
 following data flows:
 
+- **Display preview:** the fitted frames from the last successful image or GIF
+  upload are retained in `last-display-preview.bin` in the local app-data
+  directory. This lets the miniature keyboard play the animation after restart.
+  A subsequent successful upload replaces it; a successful display factory
+  reset removes it. Preview playback makes no network or keyboard requests.
+
 - **GIPHY search:** after the user supplies an API key and submits a search,
   the app sends that key and search terms directly to GIPHY and downloads the
   selected media from GIPHY-controlled hosts. The key is stored in localStorage

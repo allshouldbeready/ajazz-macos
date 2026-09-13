@@ -26,6 +26,7 @@ mod now_playing_tft;
 mod presets;
 mod starter_library;
 mod tft_memory;
+mod tft_preview;
 mod tft_text;
 use automations::{Automation, RunResult};
 use now_playing::NowPlaying;
@@ -1136,6 +1137,8 @@ async fn upload_tft_with_progress(
             // an output report times out. Re-open only the control collection
             // after dropping the data handle and explicitly send FINISH.
             let _ = Connection::recover_legacy_tft_transaction();
+        } else {
+            tft_preview::remember(&app, &anim);
         }
         result.map_err(AppError::from)
     })
@@ -1160,6 +1163,7 @@ fn cancel_tft_upload(upload: State<'_, Arc<TftUploadState>>) -> bool {
 /// they had before back onto the panel.
 #[tauri::command]
 async fn tft_factory_default(
+    app: AppHandle,
     io: State<'_, Arc<DeviceIoGate>>,
     state: State<'_, Arc<ConnState>>,
     memory: State<'_, Arc<TftMemory>>,
@@ -1173,6 +1177,7 @@ async fn tft_factory_default(
         })
         .await?;
     memory.forget().await;
+    tft_preview::clear(&app);
     Ok(())
 }
 
@@ -1379,6 +1384,7 @@ pub fn run() {
             apply_tft_media_bytes,
             cancel_tft_upload,
             tft_factory_default,
+            tft_preview::get_tft_preview,
             tft_forget_memory,
             now_playing_tft_start,
             now_playing_tft_stop,

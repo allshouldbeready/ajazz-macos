@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { Direction, LightingConfig, LightingModeInfo } from "../types";
+import type { Direction, LedColor, LightingConfig, LightingModeInfo } from "../types";
+import { KeyboardPreview } from "../components/KeyboardPreview";
+import { RememberedTftPreview } from "../components/RememberedTftPreview";
 import { Badge, Button, Card, Disclosure, ErrorBanner, Slider, Toggle } from "../components/ui";
 import { PageHeader } from "../components/Layout";
 import { CustomLightingPaint } from "./CustomLightingPaint";
@@ -26,6 +28,7 @@ export function Lighting() {
   });
   const [currentCfg, setCurrentCfg] = useState<LightingConfig | null>(null);
   const [busy, setBusy] = useState(false);
+  const [customColors, setCustomColors] = useState<LedColor[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [autoApply, setAutoApply] = useState(false);
   const [lastApplied, setLastApplied] = useState<string | null>(null);
@@ -264,6 +267,24 @@ export function Lighting() {
       <ErrorBanner>{err}</ErrorBanner>
 
       <div className="grid gap-6">
+        <KeyboardPreview config={cfg} customColors={customColors} display={(paused) => <RememberedTftPreview paused={paused} />}
+          controls={<>
+            <label className="flex items-center gap-2">Effect
+              <select aria-label="Preview effect" value={cfg.mode} onChange={(e) => update("mode", e.target.value)}>
+                {modes.map((mode) => <option key={mode.name} value={mode.name}>{mode.label}</option>)}
+              </select>
+            </label>
+            <label className="flex items-center gap-2">Colour
+              <input aria-label="Preview colour" type="color" className="h-8 w-10" value={`#${cfg.color}`} onChange={(e) => updateColor(e.target.value.slice(1).toUpperCase())} />
+            </label>
+            <label className="flex items-center gap-2">Brightness
+              <input aria-label="Preview brightness" type="range" className="w-20" min={0} max={5} value={cfg.brightness} onChange={(e) => update("brightness", Number(e.target.value))} />
+            </label>
+            <label className="flex items-center gap-2">Speed
+              <input aria-label="Preview speed" type="range" className="w-20" min={0} max={5} value={cfg.speed} onChange={(e) => update("speed", Number(e.target.value))} />
+            </label>
+          </>}
+        />
         <div
           className={["grid gap-6", audioReactive ? "pointer-events-none opacity-50" : ""].join(" ")}
         >
@@ -316,7 +337,7 @@ export function Lighting() {
         </Card>
 
         {isCustomMode ? (
-          <CustomLightingPaint inheritedConfig={cfg} />
+          <CustomLightingPaint inheritedConfig={cfg} onPreviewChange={setCustomColors} />
         ) : (
         <>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

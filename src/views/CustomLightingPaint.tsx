@@ -33,13 +33,14 @@ interface Props {
    *  firmware in custom mode but we still propagate so the apply_lighting
    *  payload roundtrips other fields cleanly. */
   inheritedConfig: LightingConfig;
+  onPreviewChange?: (colors: LedColor[]) => void;
 }
 
 const LED_COUNT = 128;
 const DEFAULT_PAINT = "FFFFFF";
 const APPLY_DEBOUNCE_MS = 120;
 
-export function CustomLightingPaint({ inheritedConfig }: Props) {
+export function CustomLightingPaint({ inheritedConfig, onPreviewChange }: Props) {
   const { layout } = useLayout();
   const layoutRows = layout.rows;
   const [remote, setRemote] = useState<CustomLedMap | null>(null);
@@ -55,6 +56,10 @@ export function CustomLightingPaint({ inheritedConfig }: Props) {
   const queued = useRef<LedColor[] | null>(null);
   const pending = useRef<number | null>(null);
   const initRef = useRef(false);
+
+  useEffect(() => {
+    onPreviewChange?.(draft);
+  }, [draft, onPreviewChange]);
 
   /* ----- IO ---------------------------------------------------------- */
 

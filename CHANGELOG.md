@@ -33,6 +33,16 @@ Planned for 0.8.x
 - Browser-tab media support in Now-Playing (currently only Music.app + Spotify desktop) — **declined for now** on privacy grounds; revisit if a non-invasive surface emerges.
 - JIS physical layout once hardware is available for verification.
 
+## [0.7.5-beta] — 2026-09-13
+
+### Added
+- Interactive keyboard preview in Lighting, with immediate colour, brightness,
+  speed, and effect feedback, including click and typing reactions.
+- Selectable Grey, White Purple, and Grey Beige Red keyboard finishes based on
+  the AK820 Pro product reference, rebuilt as native interface elements.
+- Local persistence of successfully uploaded display frames for playback on the
+  preview keyboard, including the applied crop, timing, and frame budget.
+
 ## [0.7.4-beta] — 2026-09-13
 
 ### Changed
